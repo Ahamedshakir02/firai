@@ -1,21 +1,29 @@
-import pdfplumber
-from pathlib import Path
+import os
+from PyPDF2 import PdfReader
 
-RAW_DIR = Path("../data/raw_firs")
-TEXT_DIR = Path("../data/text")
-TEXT_DIR.mkdir(exist_ok=True)
+RAW_DIR = "data/raw_pdfs"
+OUT_DIR = "data/extracted_text"
 
-def extract_text(pdf_path):
-    text = ""
-    with pdfplumber.open(pdf_path) as pdf:
-        for page in pdf.pages:
-            if page.extract_text():
-                text += page.extract_text() + "\n"
-    return text
+os.makedirs(OUT_DIR, exist_ok=True)
 
-if __name__ == "__main__":
-    for pdf in RAW_DIR.glob("*.pdf"):
-        text = extract_text(pdf)
-        out = TEXT_DIR / f"{pdf.stem}.txt"
-        out.write_text(text, encoding="utf-8")
-        print("Extracted:", pdf.name)
+files = os.listdir(RAW_DIR)
+
+print("Found files:", files)
+
+for file in files:
+    if file.endswith(".pdf"):
+        print("Reading:", file)
+
+        reader = PdfReader(os.path.join(RAW_DIR, file))
+        text = ""
+
+        for page in reader.pages:
+            page_text = page.extract_text()
+            if page_text:
+                text += page_text + "\n"
+
+        output_path = os.path.join(OUT_DIR, file.replace(".pdf", ".txt"))
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(text)
+
+        print("Saved:", output_path)
