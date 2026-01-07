@@ -20,23 +20,24 @@ for file in files:
     date_match = re.search(r'\b\d{2}[/-]\d{2}[/-]\d{4}\b', text)
     date = date_match.group(0) if date_match else None
 
-    # ---------------- IPC SECTIONS (FIXED) ----------------
+    # ---------------- IPC SECTIONS (FINAL – LINE-STRICT) ----------------
     ipc_sections = []
-    target_line = None
 
     lines = text.split("\n")
 
     for line in lines:
         l = line.upper()
-        if "CRIME" in l and "U/S" in l and "IPC" in l:
-            target_line = line
-            break
+        if "U/S" in l and "IPC" in l:
+            # extract ONLY between U/S and IPC from THIS line
+            match = re.search(r'U/S\s*(.*?)\s*,?\s*IPC', line, re.IGNORECASE)
+            if match:
+                raw_ipc = match.group(1)
 
-    if target_line:
-        ipc_sections = re.findall(
-            r'\b\d{2,3}\s*\(\w+\)|\b\d{2,3}\b',
-            target_line
-        )
+                ipc_sections = re.findall(
+                    r'\b\d{3}\([a-zA-Z]+\)|\b\d{3}\b',
+                    raw_ipc
+                )
+            break
 
     # remove duplicates, keep order
     ipc_sections = list(dict.fromkeys(ipc_sections))
