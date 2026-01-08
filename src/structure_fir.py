@@ -37,7 +37,7 @@ for file in files:
 
     ipc_sections = list(dict.fromkeys(ipc_sections))
 
-    # ---------------- PLACE OF OCCURRENCE (OCR-SAFE – FIXED) ----------------
+    # ---------------- PLACE OF OCCURRENCE ----------------
     place = None
 
     match = re.search(
@@ -55,12 +55,49 @@ for file in files:
     match = re.search(
         r'\(a\)\.?\s*Name.*?([A-Z]{3,}(?:\s+[A-Z]{2,})?)',
         text,
-    flags=re.IGNORECASE | re.DOTALL
+        flags=re.IGNORECASE | re.DOTALL
     )
 
     if match:
-        complainant = match.group(1).strip()
+        complainant = match.group(1).strip().upper()
 
+    # ---------------- ACCUSED (LEVEL 5 – SECTION-AWARE GLOBAL SCAN) ----------------
+    accused = []
+
+    # Step 1: isolate accused section
+    section_match = re.search(
+        r'Details of known.*?accused with full particulars(.*?)(Reason for delay|Particulars of properties|$)',
+        text,
+        flags=re.IGNORECASE | re.DOTALL
+    )
+
+    accused_text = section_match.group(1) if section_match else ""
+    # Step 2: extract NAME + AGE
+    pattern = re.compile(
+        r'(?:^|\n|\s)\d*\s*([A-Z][A-Z\s\.]{2,50})\s+Age[-\s]*([0-9]{1,3})',
+        re.IGNORECASE
+    )
+
+
+    matches = pattern.findall(accused_text)
+    for name, age in matches:
+        name_clean = re.sub(r'\s+', ' ', name).strip().upper()
+
+        accused.append({
+            "name": name_clean,
+            "age": age
+        })
+
+    # Step 3: remove duplicates
+    unique = []
+    seen = set()
+    for a in accused:
+        key = (a["name"], a["age"])
+        if key not in seen:
+            seen.add(key)
+            unique.append(a)
+
+    accused = unique
     # ---------------- OUTPUT ----------------
     data = {
         "file": file,
@@ -68,6 +105,7 @@ for file in files:
         "ipc_sections": ipc_sections,
         "place": place,
         "complainant": complainant,
+        "accused": accused,
         "full_text": text
     }
 
