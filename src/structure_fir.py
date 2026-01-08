@@ -20,37 +20,46 @@ for file in files:
     date_match = re.search(r'\b\d{2}[/-]\d{2}[/-]\d{4}\b', text)
     date = date_match.group(0) if date_match else None
 
-    # ---------------- IPC SECTIONS (FINAL – LINE-STRICT) ----------------
+    # ---------------- IPC SECTIONS (LINE-STRICT) ----------------
     ipc_sections = []
 
-    lines = text.split("\n")
-
-    for line in lines:
+    for line in text.split("\n"):
         l = line.upper()
         if "U/S" in l and "IPC" in l:
-            # extract ONLY between U/S and IPC from THIS line
             match = re.search(r'U/S\s*(.*?)\s*,?\s*IPC', line, re.IGNORECASE)
             if match:
                 raw_ipc = match.group(1)
-
                 ipc_sections = re.findall(
                     r'\b\d{3}\([a-zA-Z]+\)|\b\d{3}\b',
                     raw_ipc
                 )
             break
 
-    # remove duplicates, keep order
     ipc_sections = list(dict.fromkeys(ipc_sections))
 
-    # ---------------- PLACE (TEMP – WILL FIX NEXT) ----------------
+    # ---------------- PLACE OF OCCURRENCE (OCR-SAFE – FIXED) ----------------
     place = None
-    place_match = re.search(
-        r'Location\s*/\s*Address\s*(.*?)(?:\n|$)',
+
+    match = re.search(
+        r'Location\s*/\s*Address.*?([A-Za-z][A-Za-z\s]{3,60})',
         text,
         flags=re.IGNORECASE
     )
-    if place_match:
-        place = place_match.group(1).strip()
+
+    if match:
+        place = re.sub(r'\s+', ' ', match.group(1)).strip()
+
+    # ---------------- COMPLAINANT NAME ----------------
+    complainant = None
+
+    match = re.search(
+        r'\(a\)\.?\s*Name.*?([A-Z]{3,}(?:\s+[A-Z]{2,})?)',
+        text,
+    flags=re.IGNORECASE | re.DOTALL
+    )
+
+    if match:
+        complainant = match.group(1).strip()
 
     # ---------------- OUTPUT ----------------
     data = {
@@ -58,6 +67,7 @@ for file in files:
         "date": date,
         "ipc_sections": ipc_sections,
         "place": place,
+        "complainant": complainant,
         "full_text": text
     }
 
