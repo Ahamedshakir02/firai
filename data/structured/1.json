@@ -1,14 +1,18 @@
 {
   "file": "1.txt",
   "date": "07/05/2024",
-  "ipc_sections": [
-    "517",
-    "341",
-    "323",
-    "324",
-    "506(ii)",
-    "294(b)",
-    "427"
+  "acts": [
+    {
+      "act": "Indian Penal Code (IPC)",
+      "sections": [
+        "341",
+        "323",
+        "324",
+        "506",
+        "294(b)",
+        "427"
+      ]
+    }
   ],
   "place": "Kuttikkalathanii",
   "complainant": "AJMAL",

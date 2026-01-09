@@ -1,7 +1,14 @@
 {
   "file": "4.txt",
   "date": "07/01/2025",
-  "ipc_sections": [],
+  "acts": [
+    {
+      "act": "Motor Vehicle Act 1988",
+      "sections": [
+        "185"
+      ]
+    }
+  ],
   "place": "CHENGUVETTYi",
   "complainant": "VELAYUDAN",
   "accused": [

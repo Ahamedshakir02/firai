@@ -1,10 +1,15 @@
 {
   "file": "3.txt",
   "date": "07/01/2025",
-  "ipc_sections": [
-    "465",
-    "468",
-    "420"
+  "acts": [
+    {
+      "act": "Indian Penal Code (IPC)",
+      "sections": [
+        "465",
+        "468",
+        "420"
+      ]
+    }
   ],
   "place": "THENALA SERVICE COPERATIVE BANKi",
   "complainant": "HANEEFA",
