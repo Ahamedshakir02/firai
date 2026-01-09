@@ -1,1 +1,29 @@
-pypdf2
+# ---------- Core ----------
+python-dateutil>=2.8.2
+regex>=2023.10.3
+
+# ---------- PDF & OCR ----------
+pymupdf>=1.23.8        # Primary PDF text extraction (best)
+pypdf2>=3.0.1          # Fallback / text-only PDFs
+pytesseract>=0.3.10    # OCR (Malayalam support)
+Pillow>=10.1.0         # Image handling for OCR
+
+# ---------- Text Processing ----------
+langdetect>=1.0.9
+unicodedata2>=15.1.0
+
+# ---------- NLP ----------
+nltk>=3.8.1
+spacy>=3.7.2
+sentence-transformers>=2.2.2
+
+# ---------- Data ----------
+numpy>=1.26.2
+pandas>=2.1.4
+
+# ---------- Utilities ----------
+tqdm>=4.66.1
+rich>=13.7.0
+
+# ---------- Serialization ----------
+orjson>=3.9.10
