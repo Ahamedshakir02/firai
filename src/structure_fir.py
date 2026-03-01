@@ -158,6 +158,47 @@ for file in files:
                 "name": name.strip().upper(),
                 "age": age
             })
+    # ---------------- NARRATIVE EXTRACTION (KEYWORD-BASED) ----------------
+    narrative = None
+
+    match = re.search(
+        r'First Information Contents.*?\n(.*?)\n\s*13\.',
+        text,
+        flags=re.IGNORECASE | re.DOTALL
+    )
+
+    if not match:
+        # fallback using Malayalam pattern
+        match = re.search(
+            r'First Information Contents.*?(.*?)Directed to take up the Investigation',
+            text,
+            flags=re.IGNORECASE | re.DOTALL
+        )
+
+    if match:
+        narrative = match.group(1).strip()
+        narrative = re.sub(r'\s+', ' ', narrative)
+    # ---------------- NARRATIVE CLEANING ----------------
+
+    if narrative:
+        # Remove Malayalam FIR header inside brackets
+        narrative = re.sub(
+            r'\(.*?ഉള്ളടക്കം.*?\)',
+            '',
+            narrative,
+            flags=re.IGNORECASE
+        )
+
+        # Remove "Action taken" section if it accidentally leaks in
+        narrative = re.sub(
+            r'13\..*',
+            '',
+            narrative,
+            flags=re.IGNORECASE | re.DOTALL
+        )
+
+        # Normalize whitespace
+        narrative = re.sub(r'\s+', ' ', narrative).strip()
 
     # ---------------- OUTPUT ----------------
     data = {
@@ -167,6 +208,7 @@ for file in files:
         "place": place,
         "complainant": complainant,
         "accused": accused,
+        "narrative": narrative,
         "full_text": text
     }
 
@@ -175,3 +217,4 @@ for file in files:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
     print("Structured:", output_file)
+
