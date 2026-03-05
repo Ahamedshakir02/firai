@@ -1,22 +1,27 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
-from core.retrieval_engine import find_similar_firs
-
-app = FastAPI(title="FIR Similarity Engine")
-
-
-# Request model
-class FIRRequest(BaseModel):
-    narrative: str
-    top_k: int = 5
+from fastapi import UploadFile, File
+import tempfile
+from src.extract_text import extract_text_from_pdf
+from src.structure_fir import extract_narrative_from_text
 
 
-@app.get("/")
-def home():
-    return {"message": "FIR Similarity API Running"}
+@app.post("/upload-fir")
+async def upload_fir(file: UploadFile = File(...)):
+    # Save temporary file
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp:
+        content = await file.read()
+        temp.write(content)
+        temp_path = temp.name
 
+    # Extract raw text
+    text = extract_text_from_pdf(temp_path)
 
-@app.post("/find-similar")
-def find_similar(request: FIRRequest):
-    results = find_similar_firs(request.narrative, request.top_k)
-    return {"similar_firs": results}
+    # Extract narrative only
+    narrative = extract_narrative_from_text(text)
+
+    # Find similar FIRs
+    results = find_similar_firs(narrative)
+
+    return {
+        "narrative": narrative,
+        "similar_firs": results
+    }
