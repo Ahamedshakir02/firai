@@ -124,15 +124,47 @@ for file in files:
         place = re.sub(r'\s+', ' ', match.group(1)).strip()
 
     # ---------------- COMPLAINANT ----------------
-    complainant = None
-    match = re.search(
+    complainant = {
+        "name": None,
+        "father_name": None,
+        "dob": None
+    }
+
+    name_match = re.search(
         r'\(a\)\.?\s*Name.*?([A-Z]{3,}(?:\s+[A-Z]{2,})?)',
         text,
         flags=re.IGNORECASE | re.DOTALL
     )
-    if match:
-        complainant = match.group(1).strip().upper()
 
+    father_match = re.search(
+        r"Father's\s*/?\s*Mother's\s*/?\s*Husband's\s*Name.*?([A-Z\s]{3,40})",
+        text,
+        flags=re.IGNORECASE | re.DOTALL
+    )
+
+    dob_match = re.search(
+        r'([0-9]{1,2}[/-][0-9]{1,2}[/-][0-9]{2,4})',
+        text
+    )
+
+    if name_match:
+        complainant["name"] = name_match.group(1).strip().upper()
+
+    if father_match:
+        father_candidate = father_match.group(1).strip().upper()
+
+        invalid_words = [
+            "DISTRICT", "KERALA", "INDIA", "MALAPPURAM",
+            "ADDRESS", "PRESENT", "PERMANENT"
+        ]
+
+        if any(word in father_candidate for word in invalid_words):
+            father_candidate = None
+
+        complainant["father_name"] = father_candidate
+
+    if dob_match:
+        complainant["dob"] = dob_match.group(1)
     # ---------------- ACCUSED ----------------
     accused = []
 
@@ -150,13 +182,61 @@ for file in files:
     )
 
     seen = set()
-    for name, age in pattern.findall(accused_text):
-        key = (name.strip().upper(), age)
+
+    for match in pattern.finditer(accused_text):
+
+        name = match.group(1).strip().upper()
+
+        father = None
+        dob = None
+        address = None
+
+        context = accused_text[max(0, match.start()-200): match.end()+200]
+
+        father_match = re.search(
+            r'(?:FATHER|S/O|D/O|W/O)\s*[:\-]?\s*([A-Z\s]{3,40})',
+            context,
+            re.IGNORECASE
+        )
+
+        if father_match:
+            father_candidate = father_match.group(1).strip().upper()
+
+            invalid_words = [
+                "DISTRICT", "KERALA", "INDIA",
+                "ADDRESS", "PRESENT", "PERMANENT"
+            ]
+
+            if not any(w in father_candidate for w in invalid_words):
+                father = father_candidate
+
+        dob_match = re.search(
+            r'([0-9]{1,2}[/-][0-9]{1,2}[/-][0-9]{2,4})',
+            context
+        )
+
+        if dob_match:
+            dob = dob_match.group(1)
+
+        address_match = re.search(
+            r'(?:PERMANENT|PRESENT)\s*:\s*([A-Z0-9\s,]{10,120})',
+            context,
+            re.IGNORECASE
+        )
+
+        if address_match:
+            address = address_match.group(1).strip()
+
+        key = name
+
         if key not in seen:
             seen.add(key)
+
             accused.append({
-                "name": name.strip().upper(),
-                "age": age
+                "name": name,
+                "father_name": father,
+                "dob": dob,
+                "address": address
             })
     # ---------------- NARRATIVE EXTRACTION (KEYWORD-BASED) ----------------
     narrative = None
