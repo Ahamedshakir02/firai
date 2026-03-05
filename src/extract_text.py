@@ -4,43 +4,58 @@ import pytesseract
 from PIL import Image
 import io
 
-RAW_DIR = "data/raw_pdfs"
-OUT_DIR = "data/extracted_text"
 
-os.makedirs(OUT_DIR, exist_ok=True)
+def extract_text_from_pdf(pdf_path):
+    """
+    Extract text from a single FIR PDF using OCR.
+    Used by the API when a new FIR is uploaded.
+    """
 
-files = os.listdir(RAW_DIR)
+    doc = fitz.open(pdf_path)
+    full_text = ""
 
-print("Found files:", files)
+    for page_number in range(len(doc)):
+        page = doc[page_number]
 
-for file in files:
-    if file.endswith(".pdf"):
-        print("Processing:", file)
+        pix = page.get_pixmap(dpi=300)
+        img = Image.open(io.BytesIO(pix.tobytes("png")))
 
-        pdf_path = os.path.join(RAW_DIR, file)
-        doc = fitz.open(pdf_path)
+        text = pytesseract.image_to_string(
+            img,
+            lang="mal+eng",
+            config="--oem 3 --psm 6"
+        )
 
-        full_text = ""
+        full_text += text + "\n"
 
-        for page_number in range(len(doc)):
-            page = doc[page_number]
+    return full_text
 
-            # Convert page to high-resolution image
-            pix = page.get_pixmap(dpi=300)
-            img = Image.open(io.BytesIO(pix.tobytes("png")))
 
-            # OCR with Malayalam + English
-            text = pytesseract.image_to_string(
-                img,
-                lang="mal+eng",
-                config="--oem 3 --psm 6"
-            )
+def batch_extract(raw_dir="data/raw_pdfs", out_dir="data/extracted_text"):
+    """
+    Optional batch pipeline used only for preprocessing datasets.
+    """
 
-            full_text += text + "\n"
+    os.makedirs(out_dir, exist_ok=True)
 
-        output_path = os.path.join(OUT_DIR, file.replace(".pdf", ".txt"))
+    files = os.listdir(raw_dir)
+    print("Found files:", files)
 
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(full_text)
+    for file in files:
+        if file.endswith(".pdf"):
+            print("Processing:", file)
 
-        print("Saved:", output_path)
+            pdf_path = os.path.join(raw_dir, file)
+
+            text = extract_text_from_pdf(pdf_path)
+
+            output_path = os.path.join(out_dir, file.replace(".pdf", ".txt"))
+
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write(text)
+
+            print("Saved:", output_path)
+
+
+if __name__ == "__main__":
+    batch_extract()
