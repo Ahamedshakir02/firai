@@ -1,3 +1,0 @@
-from core.embedding_store import build_embedding_store
-
-build_embedding_store()
