@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { firAPI } from '../../api/client';
+import { firAPI } from '../api/client';
 import { Search, Filter, Eye, Calendar, MapPin, ChevronRight, X } from 'lucide-react';
 
 export default function CaseIntelligence() {
@@ -135,7 +135,14 @@ export default function CaseIntelligence() {
         {selectedFIR && (
           <div className="card" style={{ position: 'sticky', top: 90, alignSelf: 'start', maxHeight: 'calc(100vh - 120px)', overflowY: 'auto' }}>
             <div className="card-header">
-              <div className="card-title">FIR #{selectedFIR.id} Details</div>
+              <div className="card-title">
+                {selectedFIR.fir_number ? `Case ${selectedFIR.fir_number}` : `FIR #${selectedFIR.id}`}
+                {selectedFIR.police_station && (
+                  <span style={{ fontSize: '0.8rem', fontWeight: 400, color: 'var(--text-muted)', marginLeft: 8 }}>
+                    {selectedFIR.police_station} PS
+                  </span>
+                )}
+              </div>
               <button className="btn btn-ghost btn-sm" onClick={() => { setSelectedFIR(null); setSimilarFIRs([]); }}>
                 <X size={16} />
               </button>

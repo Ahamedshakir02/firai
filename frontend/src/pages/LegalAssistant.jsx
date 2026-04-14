@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { legalAPI } from '../../api/client';
+import { legalAPI } from '../api/client';
 import { Send, Scale, BookOpen, Loader, Bot, User } from 'lucide-react';
 
 export default function LegalAssistant() {

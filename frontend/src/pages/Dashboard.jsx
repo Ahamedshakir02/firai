@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { dashboardAPI } from '../../api/client';
+import { dashboardAPI } from '../api/client';
 import {
   FileText, AlertTriangle, Shield, TrendingUp,
   Clock, ChevronRight

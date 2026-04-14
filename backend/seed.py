@@ -14,6 +14,7 @@ from database import engine, async_session, Base
 from models.fir import FIR, Accused
 from services.embedding_engine import embedding_engine
 from services import gemini_service
+from services.fir_processor import extract_fir_number
 from config import get_settings
 
 settings = get_settings()
@@ -70,11 +71,18 @@ async def seed_database():
                 # Use fallback analysis (don't hit Gemini API during seed to avoid quota)
                 analysis = gemini_service._fallback_analysis(narrative)
 
+                # Extract FIR number from full_text if available
+                fir_num = None
+                full_text = data.get("full_text", "")
+                if full_text:
+                    fir_num = extract_fir_number(full_text)
+
                 # Create FIR record
                 fir = FIR(
                     file_name=data.get("file", filename),
+                    fir_number=fir_num,
                     narrative=narrative,
-                    full_text=data.get("full_text"),
+                    full_text=full_text,
                     fir_date=fir_date,
                     place=data.get("place"),
                     acts=data.get("acts"),

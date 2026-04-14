@@ -10,6 +10,7 @@ Supports narratives in both Malayalam and English.
 
 import json
 import re
+import asyncio
 from typing import Optional
 import google.generativeai as genai
 from config import get_settings
@@ -20,10 +21,15 @@ settings = get_settings()
 if settings.GEMINI_API_KEY:
     genai.configure(api_key=settings.GEMINI_API_KEY)
 
+# Reuse a single model instance (thread-safe for reads)
+_model = None
 
 def _get_model():
-    """Get a Gemini model instance."""
-    return genai.GenerativeModel("gemini-1.5-flash")
+    """Get or create a Gemini model instance (module-level singleton)."""
+    global _model
+    if _model is None:
+        _model = genai.GenerativeModel("gemini-1.5-flash")
+    return _model
 
 
 async def analyze_narrative(narrative: str) -> dict:
@@ -76,7 +82,11 @@ Analyze this narrative and return a JSON object with the following fields:
 Return ONLY valid JSON. No markdown, no code blocks, no explanation.
 """
 
-        response = model.generate_content(prompt)
+        # Run the blocking Gemini SDK call in a thread pool — never block the event loop
+        response = await asyncio.wait_for(
+            asyncio.to_thread(model.generate_content, prompt),
+            timeout=30.0
+        )
         text = response.text.strip()
 
         # Clean up response - remove markdown code blocks if present
@@ -141,7 +151,11 @@ Return as JSON:
 Return ONLY valid JSON.
 """
 
-        response = model.generate_content(prompt)
+        # Run blocking Gemini call in thread pool to avoid blocking the event loop
+        response = await asyncio.wait_for(
+            asyncio.to_thread(model.generate_content, prompt),
+            timeout=30.0
+        )
         text = response.text.strip()
         text = re.sub(r'^```json\s*', '', text)
         text = re.sub(r'^```\s*', '', text)
@@ -192,7 +206,11 @@ Return as JSON array:
 Return ONLY valid JSON array.
 """
 
-        response = model.generate_content(prompt)
+        # Run blocking Gemini call in thread pool to avoid blocking the event loop
+        response = await asyncio.wait_for(
+            asyncio.to_thread(model.generate_content, prompt),
+            timeout=60.0
+        )
         text = response.text.strip()
         text = re.sub(r'^```json\s*', '', text)
         text = re.sub(r'^```\s*', '', text)

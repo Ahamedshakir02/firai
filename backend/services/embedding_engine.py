@@ -26,11 +26,18 @@ class EmbeddingEngine:
         self._loaded = False
 
     def _ensure_model(self):
-        """Lazy-load the sentence transformer model."""
+        """Load the sentence transformer model (called at startup or on first use)."""
         if self.model is None:
             print("[EmbeddingEngine] Loading model:", settings.EMBEDDING_MODEL)
             self.model = SentenceTransformer(settings.EMBEDDING_MODEL)
             print("[EmbeddingEngine] Model loaded.")
+
+    def warmup(self):
+        """Pre-load the model at startup so first user request isn't slow."""
+        self._ensure_model()
+        # Warm up the model with a dummy encode to JIT-compile torch ops
+        self.model.encode(["warmup"], normalize_embeddings=True)
+        print("[EmbeddingEngine] Warmup complete.")
 
     def load_store(self):
         """Load pre-computed embeddings from storage."""

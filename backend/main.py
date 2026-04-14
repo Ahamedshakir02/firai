@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import init_db
 from seed import seed_database
 from routers import firs, dashboard, legal, mo_patterns, translate
+from services.embedding_engine import embedding_engine
 
 
 @asynccontextmanager
@@ -24,6 +25,11 @@ async def lifespan(app: FastAPI):
 
     print("[FirAI] Seeding database with existing FIRs...")
     await seed_database()
+
+    print("[FirAI] Warming up embedding model (pre-loading to avoid first-request delay)...")
+    import asyncio
+    await asyncio.to_thread(embedding_engine.warmup)
+    print("[FirAI] Embedding model ready.")
 
     print("[FirAI] Backend ready!")
     yield

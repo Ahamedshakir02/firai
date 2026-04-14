@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { translateAPI } from '../../api/client';
+import { translateAPI } from '../api/client';
 import { Languages, ArrowRightLeft, Loader, Copy, CheckCircle } from 'lucide-react';
 
 export default function Translation() {

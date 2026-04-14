@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { firAPI } from '../../api/client';
+import { firAPI } from '../api/client';
 import {
   Upload, FileText, Send, AlertCircle, CheckCircle,
   Loader, ChevronDown, ChevronUp, FolderUp

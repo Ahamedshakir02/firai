@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { moAPI } from '../../api/client';
+import { moAPI } from '../api/client';
 import { Fingerprint, RefreshCw, AlertTriangle, Link2, Loader } from 'lucide-react';
 
 export default function MOPatterns() {

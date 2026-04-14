@@ -25,7 +25,8 @@ def extract_text_from_pdf(pdf_path: str) -> str:
 
     for page_number in range(len(doc)):
         page = doc[page_number]
-        pix = page.get_pixmap(dpi=300)
+        # 200 DPI is sufficient for quality printed FIRs and ~40% faster than 300 DPI
+        pix = page.get_pixmap(dpi=200)
         img = Image.open(io.BytesIO(pix.tobytes("png")))
 
         text = pytesseract.image_to_string(
@@ -109,6 +110,29 @@ def extract_date(text: str) -> Optional[str]:
     """Extract date from FIR text."""
     match = re.search(r'\b\d{2}[/-]\d{2}[/-]\d{4}\b', text)
     return match.group(0) if match else None
+
+
+def extract_fir_number(text: str) -> Optional[str]:
+    """
+    Extract the Kerala Police CCTNS FIR number from full text.
+    Matches patterns like: 'FIR No. : 0017 / 2025' or 'FIR No (പ്രഥമ വിവര നമ്പർ) : 0017 / 2025'
+    Returns normalized format: '0017/2025'
+    """
+    # Pattern: FIR No followed by optional Malayalam text, colon, number / year
+    patterns = [
+        r'FIR\s*No[^:]*:\s*(\d+)\s*/\s*(\d{4})',                   # FIR No. : 0017 / 2025
+        r'FIR\s*No\.\s*\(.*?\)\s*:\s*(\d+)\s*/\s*(\d{4})',         # FIR No (Malayalam) : 0017 / 2025
+        r'Crime\s*No[^:]*:\s*(\d+)\s*/\s*(\d{4})',                  # Crime No. : ...
+        r'Case\s*No[^:]*:\s*(\d+)\s*/\s*(\d{4})',                   # Case No. : ...
+        r'Cr\.\s*No[^:]*:\s*(\d+)\s*/\s*(\d{4})',                   # Cr. No. : ...
+        r'\bCrime\b.*?(\d{4})\s*/\s*(\d{4})',                        # fallback
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            num, year = match.group(1), match.group(2)
+            return f"{num.zfill(4)}/{year}"
+    return None
 
 
 def extract_acts(text: str) -> list:
@@ -273,6 +297,7 @@ def process_fir_pdf(pdf_path: str) -> dict:
     narrative = extract_narrative(cleaned_text)
 
     # Step 4: Extract metadata fields
+    fir_number = extract_fir_number(cleaned_text) or extract_fir_number(raw_text)
     fir_date = extract_date(cleaned_text)
     acts = extract_acts(raw_text)  # Use raw text for table parsing
     place = extract_place(cleaned_text)
@@ -283,6 +308,7 @@ def process_fir_pdf(pdf_path: str) -> dict:
     return {
         "narrative": narrative or cleaned_text[:1000],  # Fallback to first 1000 chars
         "full_text": cleaned_text,
+        "fir_number": fir_number,
         "fir_date": fir_date,
         "acts": acts,
         "place": place,
@@ -304,6 +330,7 @@ def process_fir_text(text: str) -> dict:
     return {
         "narrative": narrative or cleaned[:1000],
         "full_text": cleaned,
+        "fir_number": extract_fir_number(cleaned),
         "fir_date": extract_date(cleaned),
         "acts": extract_acts(text),
         "place": extract_place(cleaned),

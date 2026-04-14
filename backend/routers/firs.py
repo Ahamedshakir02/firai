@@ -36,8 +36,13 @@ async def list_firs(
     search: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
-    """List all FIRs with optional filtering."""
-    query = select(FIR).offset(skip).limit(limit).order_by(FIR.created_at.desc())
+    """List all FIRs with optional filtering, sorted by FIR case number."""
+    query = select(FIR).offset(skip).limit(limit).order_by(
+        # Sort numerically by the number part of fir_number (e.g. '0017/2025' → 17)
+        # NULLs go last; fall back to created_at
+        FIR.fir_number.asc().nulls_last(),
+        FIR.created_at.desc()
+    )
 
     if crime_type:
         query = query.where(FIR.crime_type == crime_type)
@@ -110,6 +115,7 @@ async def upload_fir_pdf(
         # Create FIR record
         fir = FIR(
             file_name=file.filename,
+            fir_number=processed.get("fir_number"),
             narrative=processed["narrative"],
             full_text=processed["full_text"],
             fir_date=_parse_date(processed.get("fir_date")),
@@ -196,6 +202,7 @@ async def analyze_and_save_narrative(
 
     fir = FIR(
         narrative=request.narrative,
+        fir_number=analysis.get("fir_number"),
         crime_type=analysis.get("crime_type"),
         severity=analysis.get("severity"),
         risk_score=analysis.get("risk_score"),
