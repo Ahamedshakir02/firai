@@ -104,7 +104,10 @@ export default function CaseIntelligence() {
                   style={selectedFIR?.id === fir.id ? { borderColor: 'var(--accent-blue)', background: 'var(--bg-card-hover)' } : {}}
                 >
                   <div className="fir-header">
-                    <span className="fir-id">#{fir.id} — {fir.file_name || 'Unnamed'}</span>
+                    <span className="fir-id">
+                      {fir.fir_number ? `Case ${fir.fir_number}` : `#${fir.id}`}
+                      {fir.police_station ? ` — ${fir.police_station}` : (fir.file_name ? ` — ${fir.file_name}` : '')}
+                    </span>
                     <span className={`badge badge-${fir.severity || 'medium'}`}>
                       {fir.severity || 'N/A'}
                     </span>
