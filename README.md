@@ -190,18 +190,30 @@ cd firai
 
 ## Step 3 — Configure API Keys
 
-The project ships with a ready-to-use `.env` file. You only **need to add your Gemini API key** for AI features to work. Everything else works out of the box with defaults.
+The `.env` file is **not included in the repository** (it's gitignored to keep secrets safe). You need to create it from the provided template.
 
-### 3a. Get a Gemini API Key (Required for AI analysis)
+### 3a. Copy the template to create your `.env`
+
+```bash
+# Windows (PowerShell)
+copy .env.example .env
+
+# macOS / Linux
+cp .env.example .env
+```
+
+> **This step is required.** The project will not start without a `.env` file.
+
+### 3b. Get a Gemini API Key (Required for AI analysis)
 
 1. Go to https://aistudio.google.com/app/apikey
 2. Sign in with your Google account
 3. Click **"Create API Key"**
 4. Copy the key
 
-### 3b. Edit the `.env` file
+### 3c. Edit `.env` and add your keys
 
-Open `.env` in the project root (it was created during clone):
+Open the file you just created:
 
 ```bash
 # Windows (PowerShell)
@@ -211,16 +223,16 @@ notepad .env
 nano .env
 ```
 
-The file looks like this — fill in your key:
+Fill in your Gemini key (everything else can stay as-is):
 
 ```env
-# Database — leave these as-is, Docker handles it automatically
+# Database — leave these unchanged, Docker handles it
 POSTGRES_USER=firai
 POSTGRES_PASSWORD=firai_secret
 POSTGRES_DB=firai_db
 DATABASE_URL=postgresql+asyncpg://firai:firai_secret@db:5432/firai_db
 
-# AI Services — add your Gemini key here
+# Required: Add your Gemini API key here
 GEMINI_API_KEY=AIza...your_key_here
 
 # Optional: Bhashini for Malayalam ↔ English translation
@@ -228,13 +240,13 @@ GEMINI_API_KEY=AIza...your_key_here
 BHASHINI_API_KEY=
 BHASHINI_USER_ID=
 
-# Optional: Google Maps (not used yet)
+# Optional: Google Maps (reserved for future use)
 GOOGLE_MAPS_API_KEY=
 ```
 
-> **Without a Gemini key:** The app will still run and show FIRs, but AI analysis will use a keyword-based fallback instead of Gemini.
+> **Without a Gemini key:** The app still runs and loads FIRs, but AI analysis uses a keyword-based fallback instead of Gemini.
 
-### 3c. Optional — Bhashini API Key (for Translation)
+### 3d. Optional — Bhashini API Key (for Translation)
 
 1. Register at https://bhashini.gov.in/ulca/user-profile
 2. Navigate to **My Profile → API Keys**
