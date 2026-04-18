@@ -76,6 +76,22 @@ export default function CaseIntelligence() {
             <option value="cheating">Cheating</option>
             <option value="trespass">Trespass</option>
             <option value="murder">Murder</option>
+            <option value="drunk_driving">Drunk Driving</option>
+            <option value="road_accident">Road Accident</option>
+            <option value="forgery">Forgery</option>
+            <option value="excise_offense">Excise Offense</option>
+            <option value="criminal_intimidation">Criminal Intimidation</option>
+            <option value="unnatural_death">Unnatural Death</option>
+            <option value="illegal_mining">Illegal Mining</option>
+            <option value="missing_person">Missing Person</option>
+            <option value="robbery">Robbery</option>
+            <option value="kidnapping">Kidnapping</option>
+            <option value="sexual_offense">Sexual Offense</option>
+            <option value="cyber_crime">Cyber Crime</option>
+            <option value="drug_offense">Drug Offense</option>
+            <option value="domestic_violence">Domestic Violence</option>
+            <option value="property_damage">Property Damage</option>
+            <option value="fraud">Fraud</option>
             <option value="other">Other</option>
           </select>
           <button type="submit" className="btn btn-primary">

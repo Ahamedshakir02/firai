@@ -58,7 +58,7 @@ FIR NARRATIVE:
 
 Analyze this narrative and return a JSON object with the following fields:
 {{
-    "crime_type": "one of: assault, theft, robbery, cheating, trespass, murder, kidnapping, sexual_offense, cyber_crime, drug_offense, traffic_accident, domestic_violence, property_damage, fraud, other",
+    "crime_type": "one of: assault, theft, robbery, cheating, trespass, murder, kidnapping, sexual_offense, cyber_crime, drug_offense, drunk_driving, road_accident, forgery, excise_offense, criminal_intimidation, unnatural_death, illegal_mining, missing_person, domestic_violence, property_damage, fraud, other",
     "severity": "one of: low, medium, high, critical",
     "summary_en": "A clear English summary of the incident described in the narrative (2-3 sentences)",
     "ipc_sections": [
@@ -231,20 +231,44 @@ def _fallback_analysis(narrative: str) -> dict:
     severity = "medium"
 
     # Malayalam and English keyword matching
-    if any(w in text_lower for w in ["murder", "kill", "കൊല", "death", "മരണം"]):
+    if any(w in text_lower for w in ["murder", "kill", "കൊല", "death", "മരണം", "കൊല്ലും"]):
         crime_type = "murder"
         severity = "critical"
-    elif any(w in text_lower for w in ["theft", "steal", "stolen", "മോഷ്ടി", "robbery", "rob"]):
+    elif any(w in text_lower for w in ["മദ്യപിച്ച", "drunk driv", "ആല്‍ക്കോ", "breath analy", "alcohol", "മദ്യത്തിന്റെ", "281 of bns", "185 of mv", "485"]):
+        crime_type = "drunk_driving"
+        severity = "high"
+    elif any(w in text_lower for w in ["road accident", "rash driv", "അശ്രദ്ധമായും", "അവിവേകമായും", "ബ്രേക്ക്", "motor vehicle", "negligent driving", "അതിവേഗതയിലും"]):
+        crime_type = "road_accident"
+        severity = "high"
+    elif any(w in text_lower for w in ["theft", "steal", "stolen", "മോഷ്ടി", "robbery", "rob", "കളവ്", "കള്ളന്‍മാ"]):
         crime_type = "theft"
         severity = "medium"
-    elif any(w in text_lower for w in ["assault", "attack", "beat", "hit", "അടിച്ച", "അടിക്ക", "ചവിട്ട"]):
+    elif any(w in text_lower for w in ["assault", "attack", "beat", "hit", "അടിച്ച", "അടിക്ക", "ചവിട്ട", "ദേഹോപദ്രവം", "grievous hurt", "ഗുരുതര", "voluntarily causing hurt"]):
         crime_type = "assault"
         severity = "high"
-    elif any(w in text_lower for w in ["cheat", "fraud", "ചതി", "വഞ്ചന"]):
+    elif any(w in text_lower for w in ["cheat", "fraud", "ചതി", "വഞ്ചന", "വിശ്വാസ", "420", "318"]):
         crime_type = "cheating"
         severity = "medium"
-    elif any(w in text_lower for w in ["trespass", "അതിക്രമിച്ച", "break in"]):
+    elif any(w in text_lower for w in ["trespass", "അതിക്രമിച്ച", "break in", "house breaking"]):
         crime_type = "trespass"
+        severity = "high"
+    elif any(w in text_lower for w in ["forg", "counterfeit", "വ്യാജരേഖ", "465", "468", "falsif"]):
+        crime_type = "forgery"
+        severity = "medium"
+    elif any(w in text_lower for w in ["abkari", "excise", "മദ്യം", "liquor", "പരസ്യമായി മദ്യപിക്ക", "15(c)"]):
+        crime_type = "excise_offense"
+        severity = "medium"
+    elif any(w in text_lower for w in ["threaten", "intimidat", "ഭീഷണിപ്പെടുത്തി", "506", "കൊല്ലുമെന്ന്"]):
+        crime_type = "criminal_intimidation"
+        severity = "high"
+    elif any(w in text_lower for w in ["drown", "മുങ്ങി", "unnatural death", "മരണപ്പെട്ട്", "194", "suicide"]):
+        crime_type = "unnatural_death"
+        severity = "critical"
+    elif any(w in text_lower for w in ["sand", "മണല്‍", "mining", "പുഴമണല്‍", "river bank", "305(e)"]):
+        crime_type = "illegal_mining"
+        severity = "medium"
+    elif any(w in text_lower for w in ["missing", "കാണാതായ", "disappear"]):
+        crime_type = "missing_person"
         severity = "high"
 
     return {
