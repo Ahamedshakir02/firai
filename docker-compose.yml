@@ -33,6 +33,14 @@ services:
     volumes:
       - ./backend:/app
     restart: unless-stopped
+    # Health check: backend must finish seeding + model warmup before frontend starts
+    # start_period gives the backend time to boot without counting failures
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=3)\" 2>/dev/null || exit 1"]
+      interval: 15s
+      timeout: 8s
+      retries: 10
+      start_period: 90s   # gives backend ~90s to load model + seed before checks begin
 
   frontend:
     build: ./frontend
@@ -40,7 +48,8 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy   # wait for backend to finish startup before proxying
     volumes:
       - ./frontend:/app
       - /app/node_modules

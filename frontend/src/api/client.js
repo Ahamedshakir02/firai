@@ -10,6 +10,39 @@ const client = axios.create({
   },
 });
 
+// ──────────────────────── Retry Interceptor ────────────────────────
+// Auto-retry on network errors (ECONNREFUSED) — backend may still be
+// warming up (seeding DB + loading ML model) when frontend first loads.
+
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 3000;
+
+client.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const config = error.config;
+    if (!config) return Promise.reject(error);
+
+    // Only retry on network errors (no response received = backend not ready yet)
+    const isNetworkError = !error.response && (
+      error.code === 'ECONNREFUSED' ||
+      error.code === 'ERR_NETWORK' ||
+      error.message === 'Network Error'
+    );
+
+    config._retryCount = config._retryCount || 0;
+
+    if (isNetworkError && config._retryCount < MAX_RETRIES) {
+      config._retryCount += 1;
+      console.warn(`[API] Backend not ready, retrying (${config._retryCount}/${MAX_RETRIES})...`);
+      await new Promise((res) => setTimeout(res, RETRY_DELAY_MS));
+      return client(config);
+    }
+
+    return Promise.reject(error);
+  }
+);
+
 // ──────────────────────── FIR Endpoints ────────────────────────
 
 export const firAPI = {
