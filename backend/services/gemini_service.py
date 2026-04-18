@@ -2,7 +2,7 @@
 Gemini LLM Service
 ------------------
 Integrates with Google Gemini API to analyze FIR narratives.
-Handles: crime classification, risk scoring, legal section mapping,
+Handles: crime classification, legal section mapping,
 investigation recommendations, and English summarization.
 
 Supports narratives in both Malayalam and English.
@@ -38,7 +38,7 @@ async def analyze_narrative(narrative: str) -> dict:
     The narrative can be in Malayalam or English.
 
     Returns structured analysis:
-    - crime_type, severity, risk_score
+    - crime_type, severity
     - summary_en (English summary)
     - ipc_sections
     - recommended_steps
@@ -60,7 +60,6 @@ Analyze this narrative and return a JSON object with the following fields:
 {{
     "crime_type": "one of: assault, theft, robbery, cheating, trespass, murder, kidnapping, sexual_offense, cyber_crime, drug_offense, traffic_accident, domestic_violence, property_damage, fraud, other",
     "severity": "one of: low, medium, high, critical",
-    "risk_score": "a number from 1 to 10 (10 = highest risk)",
     "summary_en": "A clear English summary of the incident described in the narrative (2-3 sentences)",
     "ipc_sections": [
         {{"section": "section number", "act": "IPC or BNS", "description": "brief description of the section"}}
@@ -230,34 +229,27 @@ def _fallback_analysis(narrative: str) -> dict:
 
     crime_type = "other"
     severity = "medium"
-    risk_score = 5.0
 
     # Malayalam and English keyword matching
     if any(w in text_lower for w in ["murder", "kill", "കൊല", "death", "മരണം"]):
         crime_type = "murder"
         severity = "critical"
-        risk_score = 10.0
     elif any(w in text_lower for w in ["theft", "steal", "stolen", "മോഷ്ടി", "robbery", "rob"]):
         crime_type = "theft"
         severity = "medium"
-        risk_score = 6.0
     elif any(w in text_lower for w in ["assault", "attack", "beat", "hit", "അടിച്ച", "അടിക്ക", "ചവിട്ട"]):
         crime_type = "assault"
         severity = "high"
-        risk_score = 7.0
     elif any(w in text_lower for w in ["cheat", "fraud", "ചതി", "വഞ്ചന"]):
         crime_type = "cheating"
         severity = "medium"
-        risk_score = 5.0
     elif any(w in text_lower for w in ["trespass", "അതിക്രമിച്ച", "break in"]):
         crime_type = "trespass"
         severity = "high"
-        risk_score = 7.0
 
     return {
         "crime_type": crime_type,
         "severity": severity,
-        "risk_score": risk_score,
         "summary_en": f"FIR narrative classified as {crime_type} (fallback analysis - Gemini not available)",
         "ipc_sections": [],
         "recommended_steps": [

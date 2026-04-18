@@ -152,7 +152,7 @@ export default function CaseIntelligence() {
             </div>
 
             {/* Summary Info */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 18 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 18 }}>
               <div>
                 <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Crime Type</div>
                 <span className="badge badge-blue">{(selectedFIR.crime_type || 'Unknown').replace(/_/g, ' ')}</span>
@@ -160,10 +160,6 @@ export default function CaseIntelligence() {
               <div>
                 <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Severity</div>
                 <span className={`badge badge-${selectedFIR.severity || 'medium'}`}>{selectedFIR.severity || 'N/A'}</span>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Risk</div>
-                <span style={{ fontWeight: 700, fontSize: '1.2rem' }}>{selectedFIR.risk_score || '—'}</span>
               </div>
             </div>
 

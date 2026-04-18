@@ -89,7 +89,6 @@ async def seed_database():
                     complainant=data.get("complainant"),
                     crime_type=analysis.get("crime_type"),
                     severity=analysis.get("severity"),
-                    risk_score=analysis.get("risk_score"),
                     summary_en=analysis.get("summary_en"),
                     recommended_steps=analysis.get("recommended_steps"),
                     key_entities=analysis.get("key_entities"),

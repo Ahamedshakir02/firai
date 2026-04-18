@@ -220,7 +220,7 @@ export default function FIRAnalyzer() {
           {result ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               {/* Classification */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Crime Type</div>
                   <span className="badge badge-blue" style={{ fontSize: '0.82rem' }}>
@@ -230,12 +230,6 @@ export default function FIRAnalyzer() {
                 <div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Severity</div>
                   <SeverityBadge severity={result.severity} />
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Risk Score</div>
-                  <div style={{ fontSize: '1.4rem', fontWeight: 700, color: result.risk_score > 7 ? 'var(--accent-red)' : result.risk_score > 4 ? 'var(--accent-gold)' : 'var(--accent-emerald)' }}>
-                    {result.risk_score || '—'}<span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>/10</span>
-                  </div>
                 </div>
               </div>
 

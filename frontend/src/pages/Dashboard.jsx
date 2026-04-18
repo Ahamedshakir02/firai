@@ -138,7 +138,7 @@ export default function Dashboard() {
           <div className="card-header">
             <div>
               <div className="card-title">Severity Distribution</div>
-              <div className="card-subtitle">Risk assessment from narratives</div>
+              <div className="card-subtitle">Severity classification from narratives</div>
             </div>
           </div>
           {severityData.length > 0 ? (

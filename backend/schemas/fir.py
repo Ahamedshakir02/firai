@@ -51,7 +51,7 @@ class FIRListItem(BaseModel):
     place: Optional[str] = None
     crime_type: Optional[str] = None
     severity: Optional[str] = None
-    risk_score: Optional[float] = None
+
     narrative: Optional[str] = None
     summary_en: Optional[str] = None
     acts: Optional[list] = None
@@ -88,7 +88,7 @@ class SimilarFIR(BaseModel):
 class AnalysisResult(BaseModel):
     crime_type: Optional[str] = None
     severity: Optional[str] = None
-    risk_score: Optional[float] = None
+
     summary_en: Optional[str] = None
     ipc_sections: Optional[list] = None
     recommended_steps: Optional[list] = None
