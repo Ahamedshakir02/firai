@@ -6,7 +6,7 @@ using embedding clustering and Gemini analysis.
 """
 
 from typing import List, Optional
-from services.embedding_engine import embedding_engine
+from services.embedding_engine import embedding_engine, strip_fir_boilerplate
 from services import gemini_service
 import numpy as np
 from sklearn.cluster import DBSCAN
@@ -18,16 +18,29 @@ async def detect_patterns_from_narratives(narratives: List[dict]) -> list:
     Each dict should have 'id', 'narrative', and optionally 'crime_type'.
 
     Uses both embedding clustering and Gemini analysis.
+    Strips FIR boilerplate first so patterns are based on actual crime content,
+    not shared FIR template format.
     """
     if not narratives:
         return []
 
+    # Strip boilerplate from all narratives before analysis
+    cleaned_narratives = []
+    for n in narratives:
+        raw = n.get("narrative", "")
+        cleaned = strip_fir_boilerplate(raw) if raw else ""
+        cleaned_narratives.append(cleaned)
+
     # Method 1: Use Gemini for intelligent pattern detection
-    narrative_texts = [n.get("narrative", "") for n in narratives if n.get("narrative")]
-    gemini_patterns = await gemini_service.detect_mo_patterns(narrative_texts)
+    gemini_patterns = await gemini_service.detect_mo_patterns(cleaned_narratives)
 
     # Method 2: Embedding-based clustering for additional pattern detection
-    cluster_patterns = _cluster_narratives(narratives)
+    cluster_input = [
+        {"id": n.get("id", i), "narrative": cleaned_narratives[i], "crime_type": n.get("crime_type")}
+        for i, n in enumerate(narratives)
+        if cleaned_narratives[i]  # skip empty cleaned narratives
+    ]
+    cluster_patterns = _cluster_narratives(cluster_input)
 
     # Merge results
     all_patterns = []
@@ -58,6 +71,7 @@ async def detect_patterns_from_narratives(narratives: List[dict]) -> list:
 def _cluster_narratives(narratives: List[dict]) -> list:
     """
     Use DBSCAN clustering on narrative embeddings to find similar crime groups.
+    Narratives should already be stripped of boilerplate.
     """
     if len(narratives) < 3:
         return []
@@ -69,10 +83,13 @@ def _cluster_narratives(narratives: List[dict]) -> list:
         if len(texts) < 3:
             return []
 
+        # Embeddings are already cleaned by encode_narratives (strips boilerplate internally)
         embeddings = embedding_engine.encode_narratives(texts)
 
         # DBSCAN clustering on embeddings
-        clustering = DBSCAN(eps=0.5, min_samples=2, metric='cosine')
+        # eps=0.35 requires higher similarity (lower distance) to cluster together
+        # This prevents unrelated FIRs from being grouped just because of format similarity
+        clustering = DBSCAN(eps=0.35, min_samples=2, metric='cosine')
         labels = clustering.fit_predict(embeddings)
 
         # Group by cluster
@@ -88,7 +105,7 @@ def _cluster_narratives(narratives: List[dict]) -> list:
         for cluster_id, members in clusters.items():
             patterns.append({
                 "pattern_name": f"Crime Cluster #{cluster_id + 1}",
-                "description": f"Group of {len(members)} FIRs with similar narrative patterns",
+                "description": f"Group of {len(members)} FIRs with similar crime methods and patterns",
                 "crime_type": "mixed",
                 "occurrence_count": len(members),
                 "linked_fir_ids": [m["id"] for m in members],

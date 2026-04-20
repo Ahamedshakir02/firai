@@ -390,8 +390,9 @@ async def get_similar_firs(
 
 # ──────────────────────── Helper Functions ────────────────────────
 
-async def _find_similar_in_db(narrative: str, db: AsyncSession, top_k: int = 5, exclude_id: int = None) -> List[SimilarFIR]:
-    """Find similar FIRs in the database using embedding similarity."""
+async def _find_similar_in_db(narrative: str, db: AsyncSession, top_k: int = 5, exclude_id: int = None, min_score: float = 0.55) -> List[SimilarFIR]:
+    """Find similar FIRs in the database using embedding similarity.
+    Only returns results with similarity score >= min_score to avoid false positives."""
     # Get all FIRs with embeddings
     query = select(FIR).where(FIR.embedding_vector.isnot(None))
     if exclude_id:
@@ -412,7 +413,9 @@ async def _find_similar_in_db(narrative: str, db: AsyncSession, top_k: int = 5, 
         if fir.embedding_vector:
             stored_emb = np.frombuffer(fir.embedding_vector, dtype=np.float32).reshape(1, -1)
             sim = float(np.dot(query_embedding, stored_emb.T)[0][0])
-            similarities.append((fir, sim))
+            # Only include results above the minimum similarity threshold
+            if sim >= min_score:
+                similarities.append((fir, sim))
 
     # Sort by similarity
     similarities.sort(key=lambda x: x[1], reverse=True)

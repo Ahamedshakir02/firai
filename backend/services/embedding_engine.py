@@ -11,9 +11,102 @@ import numpy as np
 from typing import List, Optional
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
+import re as _re
 from config import get_settings
 
 settings = get_settings()
+
+# ── Boilerplate phrases commonly found in Kerala Police FIR narratives ──
+# These are template/format phrases that appear in every FIR regardless of crime type.
+# Stripping them before encoding ensures embeddings capture only the actual incident.
+_BOILERPLATE_PATTERNS = [
+    # English FIR template phrases
+    r'Before the Hon\'ble.*?(?:BNSS|BNS|IPC).*?പ്രകാരം\)',
+    r'District\s*\(ജില്ല\)\s*:.*?(?=\d{2}[/\-]\d{2}[/\-]\d{4}|$)',
+    r'FIR\s*No[^:]*:.*?\d{4}',
+    r'Date and Time of FIR.*?\d{2}:\d{2}',
+    r'SI\s*No\.\s*Acts\s*Sections.*?(?=\d{2}[/\-]\d{2})',
+    r'Occurrence of Offence.*?(?=First Information Contents|എഫ്\u200c\.ഐ\.ആര്\u200d)',
+    r'Information Received at P\.S.*?hrs',
+    r'General Diary References.*?hrs',
+    r'Type of Information.*?(?:Oral|Written|Suo Mottu)',
+    r'Source of Complainant.*?(?:Citizen|General Public|Suo Mottu)',
+    r'Place of Occurrence.*?(?=Complainant|പരാതിക്കാരന്)',
+    r'Direction and distance from P\.S.*',
+    r'Beat No.*',
+    r'Complainant / Informant.*',
+    r'Father\'s / Mother\'s / Husband\'s Name.*',
+    r'Nationality.*?INDIA',
+    r'UID No\..*',
+    r'Passport No\..*',
+    r'ID details.*?(?:PAN|പാന്\u200d)',
+    r'Occupation\s*\(.*?\)\s*:',
+    r'Address Type\s*Address.*',
+    r'Permanent Address.*?INDIA',
+    r'Present Address.*?INDIA',
+    r'Land Phone Number.*',
+    r'Mobile Number.*?\d+',
+    r'Victim / Missing / Deceased details.*',
+    r'Details of known.*?accused with full particulars.*',
+    r'Reason for delay in reporting.*',
+    r'Particulars of properties of interest.*',
+    r'Total value of property stolen.*',
+    r'Inquest Report.*',
+    r'Action taken:.*?(?=Submitted|$)',
+    r'Directed to take up the Investigation.*',
+    r'Performing Self Investigation.*',
+    r'Name of.*?Investigation.*',
+    r'F\.I\.R\.read over to the complainant.*',
+    r'R\.O\.A\.C.*',
+    r'Signature / Thumb impression.*',
+    r'Date and time of dispatch to the court.*',
+    r'computer generated document.*',
+    r'Scan the QR Code.*',
+    r'https://thuna\.keralapolice\.gov\.in.*',
+    r'Helpline Number of District Legal Services Authority.*',
+    # Common Malayalam template phrases (present in every FIR)
+    r'സ്റ്റേഷനില്\u200d ഹാജരായി',  # appeared at the station
+    r'മൊഴി രേഖപ്പെടുത്തി',  # recorded the statement
+    r'ഹാജരാക്കിത്തന്നത്\u200c',
+    r'ഹാജരാക്കി തന്നത്\u200c',
+    r'കേസ്\u200c?\s*രജിസ്റ്റര്\u200d\s*ചെയ്യുന്നു',  # registering the case
+    r'അസ്സല്\u200d മൊഴി ഇതൊന്നിച്ചുണ്ട്\u200c',
+    r'സബ്\u200c?\s*ഇന്\u200dസ്പെക്ടര്\u200d\s*ഓഫ്\u200c?\s*പോലീസ്\u200c',
+    r'ഇന്\u200dസ്പെക്ടര്\u200d\s*ഓഫ്\u200c?\s*പോലീസ്\u200c',
+    r'പോലീസ്\u200c?\s*സ്റ്റേഷന്\u200d',
+    r'U/[Ss]\s*\d+.*?(?:IPC|BNS|MV Act|Abkari Act)',
+    r'ക്രൈം[\.\s]*\d+/\d+',
+    r'Submitted\s*Name.*',
+    r'Rank\s*\(.*?\)\s*:.*',
+    r'PEN\s*\(.*?\)\s*:.*',
+    r'PS\s*\(.*?\)\s*:.*',
+    r'\d+/\d+\s*$',  # page numbers like 3/5
+]
+
+# Compile patterns for performance
+_BOILERPLATE_RE = [_re.compile(p, _re.IGNORECASE | _re.DOTALL) for p in _BOILERPLATE_PATTERNS]
+
+
+def strip_fir_boilerplate(text: str) -> str:
+    """
+    Remove common FIR template/format text from a narrative.
+    Returns only the meaningful incident description.
+    """
+    if not text:
+        return text
+
+    cleaned = text
+    for pattern in _BOILERPLATE_RE:
+        cleaned = pattern.sub(' ', cleaned)
+
+    # Collapse whitespace
+    cleaned = _re.sub(r'\s+', ' ', cleaned).strip()
+
+    # If we stripped too aggressively and have very little left, return original
+    if len(cleaned) < 30 and len(text) > 50:
+        return text
+
+    return cleaned
 
 
 class EmbeddingEngine:
@@ -57,14 +150,18 @@ class EmbeddingEngine:
             self._loaded = True
 
     def encode_narrative(self, narrative: str) -> np.ndarray:
-        """Encode a single narrative text into an embedding vector."""
+        """Encode a single narrative text into an embedding vector.
+        Strips FIR boilerplate before encoding so embeddings capture only incident content."""
         self._ensure_model()
-        return self.model.encode([narrative], normalize_embeddings=True)[0]
+        cleaned = strip_fir_boilerplate(narrative)
+        return self.model.encode([cleaned], normalize_embeddings=True)[0]
 
     def encode_narratives(self, narratives: List[str]) -> np.ndarray:
-        """Encode multiple narrative texts into embedding vectors."""
+        """Encode multiple narrative texts into embedding vectors.
+        Strips FIR boilerplate before encoding."""
         self._ensure_model()
-        return self.model.encode(narratives, normalize_embeddings=True)
+        cleaned = [strip_fir_boilerplate(n) for n in narratives]
+        return self.model.encode(cleaned, normalize_embeddings=True)
 
     def find_similar(self, narrative: str, top_k: int = 5) -> list:
         """

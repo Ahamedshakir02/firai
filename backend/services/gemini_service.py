@@ -187,6 +187,13 @@ async def detect_mo_patterns(narratives: list) -> list:
         prompt = f"""You are a crime pattern analyst for Kerala Police.
 Analyze the following FIR narratives and identify common Modus Operandi (MO) patterns.
 
+IMPORTANT INSTRUCTIONS:
+- Focus ONLY on the actual CRIME METHOD, LOCATION PATTERNS, SUSPECT BEHAVIOR, and VICTIM TARGETING.
+- Do NOT consider FIR format/template similarities as patterns (e.g., "complainant came to station", "statement recorded", "case registered" — these appear in every FIR and are NOT crime patterns).
+- A valid MO pattern is when multiple crimes share similar methods (e.g., "drunk driving on NH road at night", "house break-in while owners are abroad", "online job fraud collecting money in installments").
+- Only report patterns that appear in 2 or more FIRs.
+- If no genuine crime patterns exist, return an empty array [].
+
 NARRATIVES:
 {narratives_text}
 
@@ -194,9 +201,9 @@ Identify recurring crime patterns, methods, and MO across these FIRs.
 Return as JSON array:
 [
     {{
-        "pattern_name": "short name for the pattern",
-        "description": "description of the MO pattern",
-        "crime_type": "crime type",
+        "pattern_name": "short descriptive name for the crime pattern",
+        "description": "detailed description of the MO pattern — what method, where, when, how",
+        "crime_type": "crime type category",
         "linked_firs": [1, 2, 5],
         "occurrence_count": 3
     }}
