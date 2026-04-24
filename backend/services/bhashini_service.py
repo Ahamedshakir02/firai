@@ -1,17 +1,24 @@
 """
-Bhashini Translation Service
------------------------------
-Integrates with Bhashini API for Malayalam ↔ English translation.
+Translation Service
+-------------------
+Primary:  Bhashini API for Malayalam ↔ English translation.
+Fallback: Google Translate (via googletrans) when Bhashini is
+          not configured or returns an error.
+
 Used for translating FIR narratives.
 """
 
+import asyncio
 import httpx
-from typing import Optional
+from typing import Optional, Tuple
 from config import get_settings
 
 settings = get_settings()
 
 BHASHINI_PIPELINE_URL = "https://dhruva-api.bhashini.gov.in/services/inference/pipeline"
+
+# Language code mapping: our internal codes → Google Translate codes
+_LANG_MAP_GOOGLE = {"ml": "ml", "en": "en", "hi": "hi"}
 
 
 async def translate_text(
@@ -20,19 +27,51 @@ async def translate_text(
     target_lang: str = "en"
 ) -> Optional[str]:
     """
-    Translate text using Bhashini API.
-
-    Args:
-        text: Input text to translate
-        source_lang: Source language code (ml=Malayalam, en=English)
-        target_lang: Target language code
+    Translate text, trying Bhashini first, then Google Translate as fallback.
 
     Returns:
-        Translated text or None if translation fails
+        Translated text string, or the original text if all methods fail.
     """
-    if not settings.BHASHINI_API_KEY:
-        return _fallback_translate(text, source_lang, target_lang)
+    translated, engine = await translate_text_with_engine(text, source_lang, target_lang)
+    return translated
 
+
+async def translate_text_with_engine(
+    text: str,
+    source_lang: str = "ml",
+    target_lang: str = "en"
+) -> Tuple[str, str]:
+    """
+    Translate text and also report which engine was used.
+
+    Returns:
+        (translated_text, engine_name) where engine_name is
+        'bhashini', 'google', or 'none'.
+    """
+    if source_lang == target_lang:
+        return text, "none"
+
+    # ── Try Bhashini first ──
+    if settings.BHASHINI_API_KEY:
+        result = await _bhashini_translate(text, source_lang, target_lang)
+        if result is not None:
+            return result, "bhashini"
+
+    # ── Fallback: Google Translate ──
+    result = await _google_translate(text, source_lang, target_lang)
+    if result is not None:
+        return result, "google"
+
+    # ── All methods failed ──
+    return text, "none"
+
+
+# ─────────────────────── Bhashini ───────────────────────
+
+async def _bhashini_translate(
+    text: str, source_lang: str, target_lang: str
+) -> Optional[str]:
+    """Translate using Bhashini API. Returns None on failure."""
     try:
         headers = {
             "Content-Type": "application/json",
@@ -72,19 +111,58 @@ async def translate_text(
                 if translations:
                     output = translations[0].get("output", [{}])
                     if output:
-                        return output[0].get("target", text)
+                        translated = output[0].get("target")
+                        if translated:
+                            return translated
 
             print(f"[BhashiniService] API response status: {response.status_code}")
-            return _fallback_translate(text, source_lang, target_lang)
+            return None
 
     except Exception as e:
         print(f"[BhashiniService] Translation error: {e}")
-        return _fallback_translate(text, source_lang, target_lang)
+        return None
 
 
-def _fallback_translate(text: str, source_lang: str, target_lang: str) -> str:
-    """Fallback when Bhashini API is not available."""
-    if source_lang == target_lang:
-        return text
+# ─────────────────────── Google Translate Fallback ───────────────────────
 
-    return f"[Translation unavailable - Bhashini API not configured] Original ({source_lang}): {text[:500]}"
+async def _google_translate(
+    text: str, source_lang: str, target_lang: str
+) -> Optional[str]:
+    """
+    Translate using deep-translator library (free Google Translate API).
+    Runs in a thread pool since deep-translator is synchronous.
+    """
+    try:
+        from deep_translator import GoogleTranslator
+
+        src = _LANG_MAP_GOOGLE.get(source_lang, source_lang)
+        dest = _LANG_MAP_GOOGLE.get(target_lang, target_lang)
+
+        # deep-translator uses 'auto' for auto-detection; we pass explicit codes
+        translator = GoogleTranslator(source=src, target=dest)
+
+        # Split long text into chunks (Google Translate has a ~5000 char limit)
+        max_chunk = 4500
+        if len(text) <= max_chunk:
+            result = await asyncio.to_thread(translator.translate, text)
+        else:
+            # Translate in chunks and join
+            chunks = [text[i:i + max_chunk] for i in range(0, len(text), max_chunk)]
+            translated_chunks = []
+            for chunk in chunks:
+                translated = await asyncio.to_thread(translator.translate, chunk)
+                translated_chunks.append(translated)
+            result = " ".join(translated_chunks)
+
+        if result:
+            print(f"[TranslationService] Google Translate fallback used ({src}→{dest})")
+            return result
+
+        return None
+
+    except ImportError:
+        print("[TranslationService] deep-translator not installed — fallback unavailable")
+        return None
+    except Exception as e:
+        print(f"[TranslationService] Google Translate error: {e}")
+        return None

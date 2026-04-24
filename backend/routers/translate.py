@@ -1,8 +1,8 @@
 """
 Translation Router
 ------------------
-Endpoints for Malayalam ↔ English translation using Bhashini API.
-Used for translating FIR narratives.
+Endpoints for Malayalam ↔ English translation.
+Uses Bhashini API (primary) with Google Translate fallback.
 """
 
 from fastapi import APIRouter
@@ -16,9 +16,9 @@ router = APIRouter(prefix="/api/translate", tags=["Translation"])
 async def translate_text(request: TranslateRequest):
     """
     Translate text between Malayalam and English.
-    Supports FIR narrative translation in both directions.
+    Tries Bhashini API first; falls back to Google Translate automatically.
     """
-    translated = await bhashini_service.translate_text(
+    translated, engine = await bhashini_service.translate_text_with_engine(
         text=request.text,
         source_lang=request.source_lang,
         target_lang=request.target_lang
@@ -26,7 +26,8 @@ async def translate_text(request: TranslateRequest):
 
     return TranslateResponse(
         original_text=request.text,
-        translated_text=translated or request.text,
+        translated_text=translated,
         source_lang=request.source_lang,
-        target_lang=request.target_lang
+        target_lang=request.target_lang,
+        engine=engine
     )

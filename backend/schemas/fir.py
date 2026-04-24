@@ -127,3 +127,4 @@ class TranslateResponse(BaseModel):
     translated_text: str
     source_lang: str
     target_lang: str
+    engine: str = "none"  # 'bhashini', 'google', or 'none'

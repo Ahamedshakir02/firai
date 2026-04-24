@@ -9,15 +9,19 @@ export default function Translation() {
   const [targetLang, setTargetLang] = useState('en');
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [engine, setEngine] = useState(null); // 'bhashini', 'google', or 'none'
 
   const translate = async () => {
     if (!inputText.trim()) return;
     setLoading(true);
+    setEngine(null);
     try {
       const { data } = await translateAPI.translate(inputText, sourceLang, targetLang);
       setOutputText(data.translated_text);
+      setEngine(data.engine || null);
     } catch (err) {
-      setOutputText('Translation failed. Please check Bhashini API configuration.');
+      setOutputText('Translation failed. Please try again later.');
+      setEngine(null);
     } finally {
       setLoading(false);
     }
@@ -28,6 +32,7 @@ export default function Translation() {
     setTargetLang(sourceLang);
     setInputText(outputText);
     setOutputText(inputText);
+    setEngine(null);
   };
 
   const copyToClipboard = async () => {
@@ -38,11 +43,17 @@ export default function Translation() {
 
   const langNames = { ml: 'Malayalam', en: 'English', hi: 'Hindi' };
 
+  const engineLabels = {
+    bhashini: { label: 'Bhashini API', color: 'var(--accent-emerald)' },
+    google:   { label: 'Google Translate (fallback)', color: 'var(--accent-amber, #f59e0b)' },
+    none:     { label: 'No translation engine available', color: 'var(--accent-red, #ef4444)' },
+  };
+
   return (
     <>
       <h1 className="page-title">Translation</h1>
       <p className="page-description">
-        Translate FIR narratives between Malayalam and English using Bhashini API
+        Translate FIR narratives between Malayalam and English — powered by Bhashini API with Google Translate fallback
       </p>
 
       {/* Language Selector */}
@@ -125,9 +136,35 @@ export default function Translation() {
           </div>
 
           {outputText ? (
-            <div className="narrative-box" style={{ minHeight: 260 }}>
-              {outputText}
-            </div>
+            <>
+              <div className="narrative-box" style={{ minHeight: 260 }}>
+                {outputText}
+              </div>
+
+              {/* Engine badge */}
+              {engine && (
+                <div style={{
+                  marginTop: 10,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: '0.78rem',
+                }}>
+                  <span style={{
+                    display: 'inline-block',
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: engineLabels[engine]?.color || 'var(--text-muted)',
+                  }} />
+                  <span style={{ color: 'var(--text-muted)' }}>
+                    Translated via: <strong style={{ color: engineLabels[engine]?.color }}>
+                      {engineLabels[engine]?.label || engine}
+                    </strong>
+                  </span>
+                </div>
+              )}
+            </>
           ) : (
             <div className="empty-state" style={{ minHeight: 260 }}>
               <Languages className="empty-icon" size={48} />
