@@ -50,19 +50,19 @@ The **FIR narrative** (Section 12 — First Information Contents) is the backbon
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                   Docker Compose                     │
-│                                                      │
+│                   Docker Compose                    │
+│                                                     │
 │  ┌──────────┐    ┌──────────────┐   ┌─────────────┐ │
 │  │ Frontend │    │   Backend    │   │  PostgreSQL │ │
 │  │  React   │◄──►│   FastAPI    │◄─►│     16      │ │
 │  │ :3000    │    │   :8000      │   │   :5432     │ │
 │  └──────────┘    └──────┬───────┘   └─────────────┘ │
-│                         │                            │
-│              ┌──────────┼──────────┐                 │
-│              ▼          ▼          ▼                 │
-│           Gemini    Bhashini   Sentence              │
-│            API        API     Transformers           │
-│         (Analysis) (Translate) (Embeddings)          │
+│                         │                           │
+│              ┌──────────┼──────────┐                │
+│              ▼          ▼          ▼                │
+│           Gemini    Bhashini   Sentence             │
+│            API        API     Transformers          │
+│         (Analysis) (Translate) (Embeddings)         │
 └─────────────────────────────────────────────────────┘
 ```
 
