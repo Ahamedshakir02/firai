@@ -274,11 +274,14 @@ async def bulk_upload_firs(
             fir.embedding_vector = embedding.tobytes()
 
             db.add(fir)
+            await db.flush()  # Flush to get fir.id before adding accused
 
-            # Add accused
+            # Add accused — use fir.id now that FIR has been flushed
             for acc in processed.get("accused", []):
-                db.add(Accused(fir_id=None, name=acc.get("name"),
-                               father_name=acc.get("father_name")))
+                db.add(Accused(fir_id=fir.id, name=acc.get("name"),
+                               father_name=acc.get("father_name"),
+                               dob=acc.get("dob"),
+                               address=acc.get("address")))
 
             await db.flush()
             processed_count += 1
@@ -347,11 +350,12 @@ async def bulk_upload_json(
             fir.embedding_vector = embedding.tobytes()
 
             db.add(fir)
+            await db.flush()  # Flush to get fir.id before adding accused
 
-            # Add accused from JSON
+            # Add accused from JSON — use fir.id now that FIR has been flushed
             for acc in data.get("accused", []):
                 if acc.get("name"):
-                    db.add(Accused(name=acc["name"],
+                    db.add(Accused(fir_id=fir.id, name=acc["name"],
                                    father_name=acc.get("father_name"),
                                    dob=acc.get("dob"),
                                    address=acc.get("address")))
@@ -447,4 +451,5 @@ def _parse_date(date_str):
                 continue
     except Exception:
         pass
+    print(f"[FirAI] Warning: Unable to parse date string: '{date_str}'")
     return None

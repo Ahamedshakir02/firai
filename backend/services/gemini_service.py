@@ -32,6 +32,10 @@ def _get_model():
     return _model
 
 
+# Maximum narrative length to send to Gemini (prevents token limit errors)
+MAX_NARRATIVE_LENGTH = 15_000
+
+
 async def analyze_narrative(narrative: str) -> dict:
     """
     Analyze an FIR narrative using Gemini.
@@ -46,6 +50,10 @@ async def analyze_narrative(narrative: str) -> dict:
     """
     if not settings.GEMINI_API_KEY:
         return _fallback_analysis(narrative)
+
+    # Truncate very long narratives to avoid hitting Gemini token limits
+    if len(narrative) > MAX_NARRATIVE_LENGTH:
+        narrative = narrative[:MAX_NARRATIVE_LENGTH] + "\n[...truncated for analysis]"
 
     try:
         model = _get_model()

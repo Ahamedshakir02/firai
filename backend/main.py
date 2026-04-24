@@ -7,6 +7,7 @@ Main entry point for the backend API.
 """
 
 from contextlib import asynccontextmanager
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -14,6 +15,7 @@ from database import init_db
 from seed import seed_database
 from routers import firs, dashboard, legal, mo_patterns, translate
 from services.embedding_engine import embedding_engine
+from config import get_settings
 
 
 @asynccontextmanager
@@ -45,10 +47,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — allow frontend
+# CORS — configurable via CORS_ORIGINS env var (comma-separated), with sensible defaults
+_default_origins = ["http://localhost:3000", "http://frontend:3000", "http://127.0.0.1:3000"]
+_cors_origins = os.environ.get("CORS_ORIGINS", "").split(",") if os.environ.get("CORS_ORIGINS") else _default_origins
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://frontend:3000", "http://127.0.0.1:3000"],
+    allow_origins=[o.strip() for o in _cors_origins if o.strip()],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -64,5 +69,11 @@ app.include_router(translate.router)
 
 @app.get("/api/health")
 async def health_check():
-    """Health check endpoint."""
-    return {"status": "healthy", "service": "FirAI Backend"}
+    """Health check endpoint with service status."""
+    settings = get_settings()
+    return {
+        "status": "healthy",
+        "service": "FirAI Backend",
+        "gemini_configured": bool(settings.GEMINI_API_KEY),
+        "bhashini_configured": bool(settings.BHASHINI_API_KEY),
+    }
