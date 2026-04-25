@@ -25,7 +25,9 @@ class BulkUploadResponse(BaseModel):
     total_files: int
     processed: int
     failed: int
+    skipped_duplicates: int = 0
     errors: List[str] = []
+    duplicates: List[str] = []  # filenames that were skipped as duplicates
 
 
 # ──────────────────────── Response Schemas ────────────────────────
@@ -89,11 +91,17 @@ class AnalysisResult(BaseModel):
     crime_type: Optional[str] = None
     severity: Optional[str] = None
 
+    narrative: Optional[str] = None  # The extracted/input narrative
+    fir_number: Optional[str] = None
     summary_en: Optional[str] = None
     ipc_sections: Optional[list] = None
     recommended_steps: Optional[list] = None
     key_entities: Optional[dict] = None
     similar_firs: List[SimilarFIR] = []
+
+    # Duplicate detection
+    is_duplicate: bool = False
+    duplicate_of_id: Optional[int] = None  # ID of the existing FIR if duplicate
 
 
 class DashboardStats(BaseModel):

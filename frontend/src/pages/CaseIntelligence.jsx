@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { firAPI } from '../api/client';
-import { Search, Filter, Eye, Calendar, MapPin, ChevronRight, X } from 'lucide-react';
+import { Search, Filter, Eye, Calendar, MapPin, ChevronRight, X, Download } from 'lucide-react';
 
 export default function CaseIntelligence() {
   const [firs, setFirs] = useState([]);
@@ -45,6 +45,36 @@ export default function CaseIntelligence() {
     e.preventDefault();
     setLoading(true);
     loadFIRs();
+  };
+
+  const downloadFIR = async (fir) => {
+    try {
+      const { data } = await firAPI.downloadFIR(fir.id);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `FIR-${fir.fir_number || fir.id}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Download failed:', err);
+    }
+  };
+
+  const exportAllFIRs = async () => {
+    try {
+      const { data } = await firAPI.exportAll();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'all_firs_export.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export failed:', err);
+    }
   };
 
   return (
@@ -96,6 +126,9 @@ export default function CaseIntelligence() {
           </select>
           <button type="submit" className="btn btn-primary">
             <Filter size={16} /> Filter
+          </button>
+          <button type="button" className="btn btn-ghost" onClick={exportAllFIRs} title="Export all FIRs as JSON">
+            <Download size={16} /> Export All
           </button>
         </form>
       </div>
@@ -162,6 +195,9 @@ export default function CaseIntelligence() {
                   </span>
                 )}
               </div>
+              <button className="btn btn-ghost btn-sm" onClick={() => downloadFIR(selectedFIR)} title="Download FIR as JSON">
+                <Download size={14} />
+              </button>
               <button className="btn btn-ghost btn-sm" onClick={() => { setSelectedFIR(null); setSimilarFIRs([]); }}>
                 <X size={16} />
               </button>

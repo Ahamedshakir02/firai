@@ -62,6 +62,8 @@ export const firAPI = {
     client.post('/firs/analyze-and-save', { narrative, top_k: 5 }),
   getSimilar: (id, top_k = 5) =>
     client.get(`/firs/${id}/similar`, { params: { top_k } }),
+  downloadFIR: (id) => client.get(`/firs/${id}/download`),
+  exportAll: () => client.get('/firs/export/all'),
   bulkUploadPDF: (files) => {
     const form = new FormData();
     files.forEach((f) => form.append('files', f));

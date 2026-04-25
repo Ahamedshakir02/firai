@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { firAPI } from '../api/client';
 import {
   Upload, FileText, Send, AlertCircle, CheckCircle,
-  Loader, ChevronDown, ChevronUp, FolderUp
+  Loader, ChevronDown, ChevronUp, FolderUp, Download, AlertTriangle, Copy
 } from 'lucide-react';
 
 export default function FIRAnalyzer() {
@@ -13,6 +13,7 @@ export default function FIRAnalyzer() {
   const [error, setError] = useState('');
   const [bulkResult, setBulkResult] = useState(null);
   const [expandedSimilar, setExpandedSimilar] = useState(null);
+  const [narrativeExpanded, setNarrativeExpanded] = useState(false);
   const fileInputRef = useRef(null);
   const bulkInputRef = useRef(null);
 
@@ -66,6 +67,17 @@ export default function FIRAnalyzer() {
     }
   };
 
+  const downloadResult = () => {
+    if (!result) return;
+    const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `FIR-analysis-${result.fir_number || 'result'}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const SeverityBadge = ({ severity }) => (
     <span className={`badge badge-${severity || 'medium'}`}>
       {severity || 'N/A'}
@@ -111,7 +123,7 @@ export default function FIRAnalyzer() {
                   className="form-textarea"
                   value={narrative}
                   onChange={(e) => setNarrative(e.target.value)}
-                  placeholder="Paste the FIR narrative here... &#10;&#10;Supports both Malayalam (e.g., 06.05.2024 തിയ്യതി രാത്രി...) and English narratives."
+                  placeholder={"Paste the FIR narrative here... \n\nSupports both Malayalam (e.g., 06.05.2024 തിയ്യതി രാത്രി...) and English narratives."}
                   style={{ minHeight: 220 }}
                 />
               </div>
@@ -156,6 +168,7 @@ export default function FIRAnalyzer() {
                 <div className="upload-hint">
                   Accepts PDF files or pre-processed JSON files.
                   <br />All files will be processed, analyzed, and stored in the database.
+                  <br /><strong>Duplicates are automatically detected and skipped.</strong>
                 </div>
                 <input
                   ref={bulkInputRef}
@@ -173,7 +186,7 @@ export default function FIRAnalyzer() {
                     <CheckCircle size={20} color="var(--accent-emerald)" />
                     <span style={{ fontWeight: 600 }}>Bulk Upload Complete</span>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
                     <div>
                       <div style={{ fontSize: '1.4rem', fontWeight: 700 }}>{bulkResult.total_files}</div>
                       <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Total Files</div>
@@ -183,10 +196,27 @@ export default function FIRAnalyzer() {
                       <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Processed</div>
                     </div>
                     <div>
+                      <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--accent-amber, #f59e0b)' }}>{bulkResult.skipped_duplicates || 0}</div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Duplicates</div>
+                    </div>
+                    <div>
                       <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--accent-red)' }}>{bulkResult.failed}</div>
                       <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Failed</div>
                     </div>
                   </div>
+
+                  {/* Duplicate list */}
+                  {bulkResult.duplicates?.length > 0 && (
+                    <div style={{ marginTop: 12, padding: 10, background: 'rgba(245, 158, 11, 0.08)', borderRadius: 8, border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, fontSize: '0.82rem', fontWeight: 600, color: 'var(--accent-amber, #f59e0b)' }}>
+                        <AlertTriangle size={14} /> Duplicates Skipped
+                      </div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                        {bulkResult.duplicates.map((d, i) => <div key={i}>• {d}</div>)}
+                      </div>
+                    </div>
+                  )}
+
                   {bulkResult.errors?.length > 0 && (
                     <div style={{ marginTop: 12, fontSize: '0.8rem', color: 'var(--accent-red)' }}>
                       {bulkResult.errors.map((e, i) => <div key={i}>• {e}</div>)}
@@ -215,10 +245,33 @@ export default function FIRAnalyzer() {
         <div className="card">
           <div className="card-header">
             <div className="card-title">Analysis Results</div>
+            {result && (
+              <button className="btn btn-ghost btn-sm" onClick={downloadResult} title="Download analysis as JSON">
+                <Download size={14} /> Download
+              </button>
+            )}
           </div>
 
           {result ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+
+              {/* Duplicate Warning */}
+              {result.is_duplicate && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: 12,
+                  background: 'rgba(245, 158, 11, 0.1)', borderRadius: 8,
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  fontSize: '0.85rem', color: 'var(--accent-amber, #f59e0b)',
+                }}>
+                  <AlertTriangle size={18} />
+                  <div>
+                    <strong>Duplicate Detected</strong> — This FIR already exists in the database
+                    {result.duplicate_of_id && <span> (FIR #{result.duplicate_of_id})</span>}.
+                    It was not added again.
+                  </div>
+                </div>
+              )}
+
               {/* Classification */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <div>
@@ -232,6 +285,48 @@ export default function FIRAnalyzer() {
                   <SeverityBadge severity={result.severity} />
                 </div>
               </div>
+
+              {/* FIR Number */}
+              {result.fir_number && (
+                <div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>FIR Number</div>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>{result.fir_number}</span>
+                </div>
+              )}
+
+              {/* Extracted Narrative */}
+              {result.narrative && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      Extracted Narrative
+                    </div>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setNarrativeExpanded(!narrativeExpanded)}
+                      style={{ fontSize: '0.72rem' }}
+                    >
+                      {narrativeExpanded ? <><ChevronUp size={12} /> Collapse</> : <><ChevronDown size={12} /> Expand</>}
+                    </button>
+                  </div>
+                  <div
+                    className="narrative-box"
+                    style={{
+                      maxHeight: narrativeExpanded ? 'none' : 120,
+                      overflow: narrativeExpanded ? 'visible' : 'hidden',
+                      position: 'relative',
+                    }}
+                  >
+                    {result.narrative}
+                    {!narrativeExpanded && result.narrative.length > 300 && (
+                      <div style={{
+                        position: 'absolute', bottom: 0, left: 0, right: 0, height: 40,
+                        background: 'linear-gradient(transparent, var(--bg-card))',
+                      }} />
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* English Summary */}
               {result.summary_en && (

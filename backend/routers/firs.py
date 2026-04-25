@@ -3,6 +3,7 @@ FIR Router
 ----------
 Endpoints for FIR management, analysis, and similarity search.
 Supports bulk upload of previous FIRs for preprocessing.
+Includes duplicate detection and FIR download.
 """
 
 import os
@@ -11,6 +12,7 @@ import tempfile
 import numpy as np
 from typing import List, Optional
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from datetime import datetime
@@ -26,6 +28,41 @@ from services.embedding_engine import embedding_engine
 
 router = APIRouter(prefix="/api/firs", tags=["FIRs"])
 
+
+# ──────────────────────── Duplicate Detection ────────────────────────
+
+async def _find_duplicate(db: AsyncSession, fir_number: Optional[str] = None,
+                          narrative: Optional[str] = None) -> Optional[FIR]:
+    """
+    Check if a FIR already exists in the database.
+    Matches by fir_number first (exact match), then by narrative similarity.
+    Returns the existing FIR if found, None otherwise.
+    """
+    if fir_number and fir_number.strip():
+        result = await db.execute(
+            select(FIR).where(FIR.fir_number == fir_number.strip())
+        )
+        existing = result.scalar_one_or_none()
+        if existing:
+            return existing
+
+    # Check for near-identical narratives (>= 95% similarity)
+    if narrative and narrative.strip():
+        query_emb = embedding_engine.encode_narrative(narrative).reshape(1, -1)
+        result = await db.execute(
+            select(FIR).where(FIR.embedding_vector.isnot(None))
+        )
+        all_firs = result.scalars().all()
+        for fir in all_firs:
+            stored_emb = np.frombuffer(fir.embedding_vector, dtype=np.float32).reshape(1, -1)
+            sim = float(np.dot(query_emb, stored_emb.T)[0][0])
+            if sim >= 0.95:
+                return fir
+
+    return None
+
+
+# ──────────────────────── List & Get ────────────────────────
 
 @router.get("", response_model=List[FIRListItem])
 async def list_firs(
@@ -54,6 +91,43 @@ async def list_firs(
     result = await db.execute(query)
     firs = result.scalars().all()
     return firs
+
+
+@router.get("/export/all")
+async def export_all_firs(db: AsyncSession = Depends(get_db)):
+    """Export all FIRs as a JSON array for backup/download."""
+    result = await db.execute(select(FIR).order_by(FIR.fir_number.asc().nulls_last()))
+    firs = result.scalars().all()
+
+    export_data = []
+    for fir in firs:
+        accused_result = await db.execute(select(Accused).where(Accused.fir_id == fir.id))
+        accused_list = accused_result.scalars().all()
+
+        export_data.append({
+            "id": fir.id,
+            "fir_number": fir.fir_number,
+            "fir_date": str(fir.fir_date) if fir.fir_date else None,
+            "district": fir.district,
+            "police_station": fir.police_station,
+            "place": fir.place,
+            "narrative": fir.narrative,
+            "crime_type": fir.crime_type,
+            "severity": fir.severity,
+            "summary_en": fir.summary_en,
+            "acts": fir.acts,
+            "accused": [
+                {"name": a.name, "father_name": a.father_name}
+                for a in accused_list
+            ],
+        })
+
+    return JSONResponse(
+        content=export_data,
+        headers={
+            "Content-Disposition": 'attachment; filename="all_firs_export.json"'
+        }
+    )
 
 
 @router.get("/{fir_id}", response_model=FIRDetail)
@@ -87,6 +161,60 @@ async def get_fir(fir_id: int, db: AsyncSession = Depends(get_db)):
     return fir_dict
 
 
+# ──────────────────────── Download ────────────────────────
+
+@router.get("/{fir_id}/download")
+async def download_fir(fir_id: int, db: AsyncSession = Depends(get_db)):
+    """
+    Download a FIR as a structured JSON file.
+    Contains all metadata, narrative, analysis, and accused information.
+    """
+    result = await db.execute(select(FIR).where(FIR.id == fir_id))
+    fir = result.scalar_one_or_none()
+
+    if not fir:
+        raise HTTPException(status_code=404, detail="FIR not found")
+
+    # Load accused
+    accused_result = await db.execute(select(Accused).where(Accused.fir_id == fir_id))
+    accused_list = accused_result.scalars().all()
+
+    fir_data = {
+        "fir_number": fir.fir_number,
+        "fir_date": str(fir.fir_date) if fir.fir_date else None,
+        "district": fir.district,
+        "police_station": fir.police_station,
+        "place": fir.place,
+        "narrative": fir.narrative,
+        "narrative_en": fir.narrative_en,
+        "full_text": fir.full_text,
+        "crime_type": fir.crime_type,
+        "severity": fir.severity,
+        "summary_en": fir.summary_en,
+        "recommended_steps": fir.recommended_steps,
+        "key_entities": fir.key_entities,
+        "acts": fir.acts,
+        "complainant": fir.complainant,
+        "accused": [
+            {"name": a.name, "father_name": a.father_name,
+             "dob": a.dob, "address": a.address}
+            for a in accused_list
+        ],
+    }
+
+    filename = fir.fir_number.replace("/", "-") if fir.fir_number else f"FIR-{fir.id}"
+    return JSONResponse(
+        content=fir_data,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}.json"'
+        }
+    )
+
+
+
+
+# ──────────────────────── Upload & Analyze ────────────────────────
+
 @router.post("/upload-pdf", response_model=AnalysisResult)
 async def upload_fir_pdf(
     file: UploadFile = File(...),
@@ -95,6 +223,7 @@ async def upload_fir_pdf(
     """
     Upload a single FIR PDF, process it, extract narrative,
     analyze with AI, and store in database.
+    Detects duplicates by FIR number or narrative similarity.
     """
     if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files accepted")
@@ -108,15 +237,36 @@ async def upload_fir_pdf(
     try:
         # Process PDF → extract narrative and metadata
         processed = fir_processor.process_fir_pdf(temp_path)
+        narrative = processed["narrative"]
+        fir_number = processed.get("fir_number")
 
         # Analyze narrative with Gemini
-        analysis = await gemini_service.analyze_narrative(processed["narrative"])
+        analysis = await gemini_service.analyze_narrative(narrative)
+
+        # Check for duplicates
+        existing = await _find_duplicate(db, fir_number=fir_number, narrative=narrative)
+        if existing:
+            # Return analysis with duplicate flag — don't add to DB
+            similar = await _find_similar_in_db(narrative, db, exclude_id=existing.id)
+            return AnalysisResult(
+                crime_type=analysis.get("crime_type"),
+                severity=analysis.get("severity"),
+                narrative=narrative,
+                fir_number=fir_number,
+                summary_en=analysis.get("summary_en"),
+                ipc_sections=analysis.get("ipc_sections"),
+                recommended_steps=analysis.get("recommended_steps"),
+                key_entities=analysis.get("key_entities"),
+                similar_firs=similar,
+                is_duplicate=True,
+                duplicate_of_id=existing.id,
+            )
 
         # Create FIR record
         fir = FIR(
             file_name=file.filename,
-            fir_number=processed.get("fir_number"),
-            narrative=processed["narrative"],
+            fir_number=fir_number,
+            narrative=narrative,
             full_text=processed["full_text"],
             fir_date=_parse_date(processed.get("fir_date")),
             district=processed.get("district"),
@@ -132,7 +282,7 @@ async def upload_fir_pdf(
         )
 
         # Generate embedding
-        embedding = embedding_engine.encode_narrative(processed["narrative"])
+        embedding = embedding_engine.encode_narrative(narrative)
         fir.embedding_vector = embedding.tobytes()
 
         db.add(fir)
@@ -148,16 +298,19 @@ async def upload_fir_pdf(
         await db.commit()
 
         # Find similar FIRs
-        similar = await _find_similar_in_db(processed["narrative"], db, exclude_id=fir.id)
+        similar = await _find_similar_in_db(narrative, db, exclude_id=fir.id)
 
         return AnalysisResult(
             crime_type=analysis.get("crime_type"),
             severity=analysis.get("severity"),
+            narrative=narrative,
+            fir_number=fir_number,
             summary_en=analysis.get("summary_en"),
             ipc_sections=analysis.get("ipc_sections"),
             recommended_steps=analysis.get("recommended_steps"),
             key_entities=analysis.get("key_entities"),
-            similar_firs=similar
+            similar_firs=similar,
+            is_duplicate=False,
         )
 
     finally:
@@ -172,18 +325,26 @@ async def analyze_narrative_text(
     """
     Analyze a pasted FIR narrative text (Malayalam or English).
     Does NOT save to database — just returns analysis.
+    Also checks if this narrative already exists in the database.
     """
     analysis = await gemini_service.analyze_narrative(request.narrative)
     similar = await _find_similar_in_db(request.narrative, db, top_k=request.top_k)
 
+    # Check for duplicates
+    existing = await _find_duplicate(db, narrative=request.narrative)
+
     return AnalysisResult(
         crime_type=analysis.get("crime_type"),
         severity=analysis.get("severity"),
+        narrative=request.narrative,
+        fir_number=analysis.get("fir_number"),
         summary_en=analysis.get("summary_en"),
         ipc_sections=analysis.get("ipc_sections"),
         recommended_steps=analysis.get("recommended_steps"),
         key_entities=analysis.get("key_entities"),
-        similar_firs=similar
+        similar_firs=similar,
+        is_duplicate=existing is not None,
+        duplicate_of_id=existing.id if existing else None,
     )
 
 
@@ -194,8 +355,31 @@ async def analyze_and_save_narrative(
 ):
     """
     Analyze a narrative and save it as a new FIR in the database.
+    Checks for duplicates first — returns existing FIR if found.
     """
     analysis = await gemini_service.analyze_narrative(request.narrative)
+
+    # Check for duplicates before saving
+    existing = await _find_duplicate(db, narrative=request.narrative)
+    if existing:
+        # Return the existing FIR instead of creating a duplicate
+        accused_result = await db.execute(select(Accused).where(Accused.fir_id == existing.id))
+        accused_list = accused_result.scalars().all()
+        fir_dict = {
+            "id": existing.id, "file_name": existing.file_name,
+            "fir_number": existing.fir_number, "fir_date": existing.fir_date,
+            "district": existing.district, "police_station": existing.police_station,
+            "place": existing.place, "narrative": existing.narrative,
+            "narrative_en": existing.narrative_en, "narrative_ml": existing.narrative_ml,
+            "full_text": existing.full_text, "crime_type": existing.crime_type,
+            "severity": existing.severity, "summary_en": existing.summary_en,
+            "recommended_steps": existing.recommended_steps,
+            "key_entities": existing.key_entities, "acts": existing.acts,
+            "complainant": existing.complainant, "created_at": existing.created_at,
+            "accused": [{"id": a.id, "name": a.name, "father_name": a.father_name,
+                          "dob": a.dob, "address": a.address} for a in accused_list]
+        }
+        return fir_dict
 
     fir = FIR(
         narrative=request.narrative,
@@ -218,6 +402,8 @@ async def analyze_and_save_narrative(
     return fir
 
 
+# ──────────────────────── Bulk Upload ────────────────────────
+
 @router.post("/bulk-upload", response_model=BulkUploadResponse)
 async def bulk_upload_firs(
     files: List[UploadFile] = File(...),
@@ -226,11 +412,13 @@ async def bulk_upload_firs(
     """
     Bulk upload multiple FIR PDFs.
     Processes each one: extract narrative → analyze → store in DB.
-    Designed for uploading previous/historical FIRs.
+    Skips duplicates (same FIR number or near-identical narrative).
     """
     total = len(files)
     processed_count = 0
+    skipped_duplicates = 0
     errors = []
+    duplicates = []
 
     for file in files:
         if not file.filename.endswith(".pdf"):
@@ -245,17 +433,29 @@ async def bulk_upload_firs(
 
             # Process PDF
             processed = fir_processor.process_fir_pdf(temp_path)
+            fir_number = processed.get("fir_number")
+            narrative = processed["narrative"]
+
+            # Check for duplicates
+            existing = await _find_duplicate(db, fir_number=fir_number, narrative=narrative)
+            if existing:
+                skipped_duplicates += 1
+                dup_label = fir_number or file.filename
+                duplicates.append(f"{dup_label} (matches existing FIR #{existing.id})")
+                os.unlink(temp_path)
+                continue
 
             # Analyze narrative with Gemini
             try:
-                analysis = await gemini_service.analyze_narrative(processed["narrative"])
+                analysis = await gemini_service.analyze_narrative(narrative)
             except Exception:
-                analysis = gemini_service._fallback_analysis(processed["narrative"])
+                analysis = gemini_service._fallback_analysis(narrative)
 
             # Create FIR record
             fir = FIR(
                 file_name=file.filename,
-                narrative=processed["narrative"],
+                fir_number=fir_number,
+                narrative=narrative,
                 full_text=processed["full_text"],
                 fir_date=_parse_date(processed.get("fir_date")),
                 district=processed.get("district"),
@@ -270,7 +470,7 @@ async def bulk_upload_firs(
                 key_entities=analysis.get("key_entities"),
             )
 
-            embedding = embedding_engine.encode_narrative(processed["narrative"])
+            embedding = embedding_engine.encode_narrative(narrative)
             fir.embedding_vector = embedding.tobytes()
 
             db.add(fir)
@@ -296,8 +496,10 @@ async def bulk_upload_firs(
     return BulkUploadResponse(
         total_files=total,
         processed=processed_count,
-        failed=total - processed_count,
-        errors=errors
+        failed=total - processed_count - skipped_duplicates,
+        skipped_duplicates=skipped_duplicates,
+        errors=errors,
+        duplicates=duplicates
     )
 
 
@@ -310,10 +512,13 @@ async def bulk_upload_json(
     Bulk upload pre-processed FIR JSON files.
     For importing previously structured FIR data directly.
     Each JSON must have a 'narrative' field.
+    Skips duplicates.
     """
     total = len(files)
     processed_count = 0
+    skipped_duplicates = 0
     errors = []
+    duplicates = []
 
     for file in files:
         try:
@@ -325,6 +530,15 @@ async def bulk_upload_json(
                 errors.append(f"{file.filename}: No narrative found")
                 continue
 
+            # Check for duplicates
+            fir_number = data.get("fir_number")
+            existing = await _find_duplicate(db, fir_number=fir_number, narrative=narrative)
+            if existing:
+                skipped_duplicates += 1
+                dup_label = fir_number or file.filename
+                duplicates.append(f"{dup_label} (matches existing FIR #{existing.id})")
+                continue
+
             # Analyze narrative
             try:
                 analysis = await gemini_service.analyze_narrative(narrative)
@@ -333,6 +547,7 @@ async def bulk_upload_json(
 
             fir = FIR(
                 file_name=data.get("file", file.filename),
+                fir_number=fir_number,
                 narrative=narrative,
                 full_text=data.get("full_text"),
                 fir_date=_parse_date(data.get("date")),
@@ -371,10 +586,14 @@ async def bulk_upload_json(
     return BulkUploadResponse(
         total_files=total,
         processed=processed_count,
-        failed=total - processed_count,
-        errors=errors
+        failed=total - processed_count - skipped_duplicates,
+        skipped_duplicates=skipped_duplicates,
+        errors=errors,
+        duplicates=duplicates
     )
 
+
+# ──────────────────────── Similar FIRs ────────────────────────
 
 @router.get("/{fir_id}/similar", response_model=List[SimilarFIR])
 async def get_similar_firs(

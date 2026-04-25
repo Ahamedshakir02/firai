@@ -28,7 +28,7 @@ def _get_model():
     """Get or create a Gemini model instance (module-level singleton)."""
     global _model
     if _model is None:
-        _model = genai.GenerativeModel("gemini-1.5-flash")
+        _model = genai.GenerativeModel("gemini-2.5-flash")
     return _model
 
 
