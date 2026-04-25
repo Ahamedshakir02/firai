@@ -10,13 +10,15 @@ The backend provides all API endpoints for FIR management, AI analysis, legal gu
 
 ### Key Responsibilities
 
+- **Authentication**: JWT-based secure routing, officer models, and registration requests
 - **FIR Processing**: OCR extraction from PDFs → narrative extraction → structured data
+- **Original PDF Storage**: Saves actual PDF files mapped to FIR records
 - **AI Analysis**: Crime classification, risk scoring, IPC/BNS mapping (via Gemini)
-- **Similarity Search**: Narrative embeddings using Sentence-Transformers + cosine similarity
+- **Smart Similarity Search**: Multi-dimensional scoring (Narrative embeddings + accused matching + crime types)
 - **MO Detection**: Cross-narrative pattern detection using DBSCAN clustering + Gemini
 - **Legal Knowledge**: Built-in IPC/BNS section database + Gemini-powered Q&A
 - **Translation**: Malayalam ↔ English via Bhashini API
-- **Database Seeding**: Auto-imports 36 existing FIR JSONs on first boot
+- **Database Seeding**: Auto-imports 36 existing FIR JSONs and creates initial Admin users on first boot
 
 ---
 
@@ -41,7 +43,8 @@ backend/
 │
 ├── routers/                # API Route Modules
 │   ├── __init__.py
-│   ├── firs.py             # FIR CRUD, upload, analyze, bulk upload
+│   ├── auth.py             # JWT Login, registration requests, officer profiles
+│   ├── firs.py             # FIR CRUD, upload, PDF download, analyze, similar cases
 │   ├── dashboard.py        # Dashboard statistics
 │   ├── legal.py            # Legal assistant (Gemini + KB)
 │   ├── mo_patterns.py      # MO pattern detection
@@ -68,6 +71,9 @@ backend/
 ---
 
 ## Database Models
+
+### Officer & RegistrationRequest
+Manages police officer identities, roles (admin vs standard), badge numbers, stations, and JWT authentication.
 
 ### FIR (Primary Table)
 
@@ -119,7 +125,7 @@ Singleton `EmbeddingEngine` class with lazy model loading:
 - `rebuild_store(fir_list)` — Rebuild embedding store
 
 ### `gemini_service.py`
-Google Gemini integration with fallback:
+Google Gemini 2.5 Flash integration with fallback:
 - `analyze_narrative(text)` — Full AI analysis → crime type, severity, IPC sections, etc.
 - `legal_query(question, context)` — Legal Q&A
 - `detect_mo_patterns(narratives)` — Cross-narrative pattern detection

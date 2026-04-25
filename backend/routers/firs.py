@@ -12,7 +12,7 @@ import tempfile
 import numpy as np
 from typing import List, Optional
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Query
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from datetime import datetime
@@ -169,9 +169,19 @@ async def get_fir(fir_id: int, db: AsyncSession = Depends(get_db)):
 @router.get("/{fir_id}/download")
 async def download_fir(fir_id: int, db: AsyncSession = Depends(get_db)):
     """
-    Download a FIR as a structured JSON file.
-    Contains all metadata, narrative, analysis, and accused information.
+    Download a FIR. Returns the actual PDF if available, 
+    otherwise falls back to a structured JSON file.
     """
+    # Check if we have the actual PDF file for this FIR
+    pdf_path = os.path.join(os.path.dirname(__file__), "..", "data", "raw_pdfs", f"{fir_id}.pdf")
+    if os.path.exists(pdf_path):
+        return FileResponse(
+            path=pdf_path, 
+            filename=f"FIR_{fir_id}.pdf", 
+            media_type="application/pdf"
+        )
+
+    # Fallback to JSON if PDF is not available
     result = await db.execute(select(FIR).where(FIR.id == fir_id))
     fir = result.scalar_one_or_none()
 
@@ -303,6 +313,18 @@ async def upload_fir_pdf(
             db.add(accused)
 
         await db.commit()
+
+        # Save PDF to raw_pdfs folder
+        import shutil
+        pdf_dir = os.path.join(os.path.dirname(__file__), "..", "data", "raw_pdfs")
+        os.makedirs(pdf_dir, exist_ok=True)
+        pdf_dest = os.path.join(pdf_dir, f"{fir.id}.pdf")
+        
+        # In case the file handle was still open or something, temp_path still exists
+        try:
+            shutil.copy2(temp_path, pdf_dest)
+        except Exception as e:
+            print(f"[Upload] Warning: Could not copy PDF to permanent storage: {e}")
 
         # Find similar FIRs
         similar = await _find_similar_in_db(

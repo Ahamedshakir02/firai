@@ -58,15 +58,22 @@ frontend/
     └── pages/
         ├── Dashboard.jsx         # Crime stats, charts, recent FIRs
         ├── FIRAnalyzer.jsx       # Upload/paste/bulk → AI analysis
-        ├── CaseIntelligence.jsx  # Browse, search, similar cases
+        ├── CaseIntelligence.jsx  # Browse, search, similar cases, PDF download
         ├── LegalAssistant.jsx    # Gemini chat + IPC/BNS reference
         ├── MOPatterns.jsx        # MO pattern detection & alerts
-        └── Translation.jsx      # Malayalam ↔ English translation
+        ├── Translation.jsx       # Malayalam ↔ English translation
+        ├── Login.jsx             # JWT Authentication & Registration
+        └── Profile.jsx           # Officer profile details
 ```
 
 ---
 
 ## Pages
+
+### 0. Authentication (`/login`, `/profile`)
+- **Login**: Secure access via Badge Number and Password.
+- **Registration**: Request portal for new officers to register station, rank, and details.
+- **Profile**: Displays officer identity and allows logout.
 
 ### 1. Dashboard (`/`)
 - **Stat Cards**: Total FIRs, high severity, critical cases, crime types
@@ -85,18 +92,20 @@ Results panel shows:
 - English summary of narrative
 - Applicable IPC/BNS sections
 - Recommended investigation steps
-- Similar cases with similarity percentage
+- Similar cases with similarity percentage and detailed accused identity comparisons
+- **PDF Download**: Retrieve original FIR PDFs directly from results
 
 ### 3. Case Intelligence (`/case-intelligence`)
 - Browse all FIRs in the database
 - Search narratives by keyword
 - Filter by crime type
-- Click any FIR → detailed view with narrative, acts, accused
-- Similar cases panel (embedding-based narrative similarity)
+- Click any FIR → detailed view with narrative, acts, accused, and **Download PDF** button
+- Similar cases panel (multi-dimensional: narrative embedding + crime type + accused matching)
 
 ### 4. Legal Assistant (`/legal-assistant`)
-- **Chat Interface**: Ask legal questions to Gemini AI
+- **Chat Interface**: Ask legal questions to Gemini 2.5 Flash
 - Pre-built quick questions for common officer queries
+- Retains chat history and identifies the requesting officer
 - Relevant IPC/BNS sections shown as badges
 - **Reference Panel**: Full IPC/BNS section table with bail/cognizable status
 
@@ -145,9 +154,10 @@ Results panel shows:
 All backend endpoints are wrapped in named exports:
 
 ```javascript
-import { firAPI, dashboardAPI, legalAPI, moAPI, translateAPI } from './api/client';
+import { authAPI, firAPI, dashboardAPI, legalAPI, moAPI, translateAPI } from './api/client';
 
 // Examples
+await authAPI.login('KERALA-123', 'pass');
 await firAPI.list({ crime_type: 'assault' });
 await firAPI.analyzeText('narrative text here');
 await firAPI.bulkUploadPDF(fileArray);

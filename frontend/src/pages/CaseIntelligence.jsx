@@ -49,12 +49,15 @@ export default function CaseIntelligence() {
 
   const downloadFIR = async (fir) => {
     try {
-      const { data } = await firAPI.downloadFIR(fir.id);
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const response = await firAPI.downloadFIR(fir.id);
+      const isPDF = response.headers['content-type']?.includes('pdf') || response.headers['content-type'] === 'application/pdf';
+      const filename = isPDF ? `FIR-${fir.fir_number || fir.id}.pdf` : `FIR-${fir.fir_number || fir.id}.json`;
+      
+      const blob = new Blob([response.data], { type: isPDF ? 'application/pdf' : 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `FIR-${fir.fir_number || fir.id}.json`;
+      a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {

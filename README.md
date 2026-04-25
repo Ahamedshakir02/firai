@@ -34,11 +34,12 @@
 Kerala Police officers face fragmented processes when accessing FIRs, case updates, and legal procedures. **FirAI** solves this by providing an AI-powered investigation dashboard that:
 
 - **Parses FIR narratives** (Malayalam & English) and classifies crimes with relevant IPC/BNS sections
-- **Finds similar past cases** using semantic narrative similarity (embeddings)
+- **Finds similar past cases** using multi-dimensional smart similarity (narrative embeddings + accused identity matching + crime type filtering)
 - **Detects Modus Operandi (MO) patterns** across FIRs to identify recurring crime methods
-- **Provides AI legal guidance** powered by Google Gemini
+- **Provides AI legal guidance** via a chat-based assistant powered by Google Gemini
+- **Protects Sensitive Data** via a secure, JWT-based officer authentication system and registration portal
+- **Centralises all FIR data** with original PDF document storage and retrieval
 - **Translates narratives** between Malayalam and English via Bhashini API
-- **Centralises all FIR data** in a unified, searchable dashboard sorted by real case numbers
 
 ### Core Principle: Narrative-Centric
 
@@ -314,10 +315,11 @@ You should see **36 FIRs** already loaded in the Case Intelligence page, sorted 
 
 | Feature | Page | Description |
 |---|---|---|
+| **Authentication** | `/login`, `/profile` | JWT-protected access, officer registration portal, and admin approval workflow |
 | **Dashboard** | `/` | Crime stats, severity breakdown, recent FIRs |
 | **FIR Analyzer** | `/fir-analyzer` | Upload PDF or paste narrative → AI classifies crime, extracts sections, suggests investigation steps |
-| **Case Intelligence** | `/case-intelligence` | Browse & search FIRs by case number, find similar cases using embedding similarity |
-| **Legal Assistant** | `/legal` | Chat with Gemini AI for IPC/BNS guidance, bail info, CrPC procedures |
+| **Case Intelligence** | `/case-intelligence` | Browse & search FIRs by case number, multi-dimensional smart similarity (accused match & embeddings) with direct PDF downloads |
+| **Legal Assistant** | `/legal-assistant` | Chat with Gemini AI for IPC/BNS guidance, bail info, CrPC procedures with chat history |
 | **MO Patterns** | `/mo-patterns` | Detect recurring modus operandi across all FIR narratives |
 | **Translation** | `/translation` | Translate FIR text between Malayalam and English |
 
@@ -404,8 +406,11 @@ The full interactive API docs are available at **http://localhost:8000/docs** wh
 | Endpoint | Method | Description |
 |---|---|---|
 | `/api/health` | `GET` | Health check |
+| `/api/auth/login` | `POST` | Authenticate officer and receive JWT |
+| `/api/auth/register-request` | `POST` | Request platform access |
 | `/api/firs` | `GET` | List FIRs (filter by crime type, severity, search) |
 | `/api/firs/{id}` | `GET` | Get full FIR details |
+| `/api/firs/{id}/download`| `GET` | Download the actual FIR PDF file |
 | `/api/firs/upload-pdf` | `POST` | Upload & analyse a single FIR PDF |
 | `/api/firs/analyze-text` | `POST` | Analyse pasted narrative text |
 | `/api/firs/analyze-and-save` | `POST` | Analyse and persist narrative as a new FIR |
@@ -497,9 +502,9 @@ Then restart Docker Desktop.
 | Layer | Technology | Purpose |
 |---|---|---|
 | **Frontend** | React 19, Vite, React Router v6, Recharts, Lucide Icons | Dashboard UI |
-| **Backend** | Python 3.11, FastAPI, SQLAlchemy (async), Pydantic v2 | REST API |
+| **Backend** | Python 3.11, FastAPI, SQLAlchemy (async), Pydantic v2, python-jose, passlib | REST API |
 | **Database** | PostgreSQL 16 | FIR storage |
-| **AI Analysis** | Google Gemini 1.5 Flash | Crime classification, legal Q&A, MO detection |
+| **AI Analysis** | Google Gemini 2.5 Flash | Crime classification, legal Q&A, MO detection |
 | **Embeddings** | `all-MiniLM-L6-v2` (Sentence-Transformers) | Narrative similarity search |
 | **OCR** | PyMuPDF + Tesseract OCR (`mal+eng`) | PDF text extraction |
 | **Translation** | Bhashini API (AI4Bharat) | Malayalam ↔ English |
