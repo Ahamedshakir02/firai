@@ -10,9 +10,21 @@ const client = axios.create({
   },
 });
 
-// ──────────────────────── Retry Interceptor ────────────────────────
+// ──────────────────────── JWT Token Interceptor ────────────────────────
+// Automatically attach stored JWT token to all requests.
+
+client.interceptors.request.use((config) => {
+  const token = localStorage.getItem('firai_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// ──────────────────────── Retry + Auth Interceptor ────────────────────────
 // Auto-retry on network errors (ECONNREFUSED) — backend may still be
 // warming up (seeding DB + loading ML model) when frontend first loads.
+// Also handles 401 by clearing token and redirecting to login.
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 3000;
@@ -22,6 +34,15 @@ client.interceptors.response.use(
   async (error) => {
     const config = error.config;
     if (!config) return Promise.reject(error);
+
+    // Handle 401 — redirect to login
+    if (error.response?.status === 401 && !config._isRetryAuth) {
+      localStorage.removeItem('firai_token');
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+      return Promise.reject(error);
+    }
 
     // Only retry on network errors (no response received = backend not ready yet)
     const isNetworkError = !error.response && (
@@ -117,6 +138,18 @@ export const translateAPI = {
 
 export const healthAPI = {
   check: () => client.get('/health'),
+};
+
+// ──────────────────────── Auth ────────────────────────
+
+export const authAPI = {
+  login: (badge_number, password) => client.post('/auth/login', { badge_number, password }),
+  getProfile: () => client.get('/auth/me'),
+  registerRequest: (data) => client.post('/auth/register-request', data),
+  listRegistrationRequests: (status) =>
+    client.get('/auth/registration-requests', { params: status ? { status_filter: status } : {} }),
+  approveRequest: (id) => client.post(`/auth/registration-requests/${id}/approve`),
+  rejectRequest: (id, reason) => client.post(`/auth/registration-requests/${id}/reject`, null, { params: { reason } }),
 };
 
 export default client;

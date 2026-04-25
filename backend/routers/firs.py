@@ -19,14 +19,17 @@ from datetime import datetime
 
 from database import get_db
 from models.fir import FIR, Accused
+from models.officer import Officer
 from schemas.fir import (
     NarrativeAnalyzeRequest, FIRListItem, FIRDetail,
-    SimilarFIR, AnalysisResult, BulkUploadResponse
+    SimilarFIR, AccusedMatch, AnalysisResult, BulkUploadResponse
 )
 from services import fir_processor, gemini_service
 from services.embedding_engine import embedding_engine
+from routers.auth import require_officer
 
-router = APIRouter(prefix="/api/firs", tags=["FIRs"])
+# All endpoints in this router require a valid JWT token
+router = APIRouter(prefix="/api/firs", tags=["FIRs"], dependencies=[Depends(require_officer)])
 
 
 # ──────────────────────── Duplicate Detection ────────────────────────
@@ -247,7 +250,11 @@ async def upload_fir_pdf(
         existing = await _find_duplicate(db, fir_number=fir_number, narrative=narrative)
         if existing:
             # Return analysis with duplicate flag — don't add to DB
-            similar = await _find_similar_in_db(narrative, db, exclude_id=existing.id)
+            similar = await _find_similar_in_db(
+                narrative, db, exclude_id=existing.id,
+                crime_type=analysis.get("crime_type"),
+                accused_list=processed.get("accused", [])
+            )
             return AnalysisResult(
                 crime_type=analysis.get("crime_type"),
                 severity=analysis.get("severity"),
@@ -298,7 +305,11 @@ async def upload_fir_pdf(
         await db.commit()
 
         # Find similar FIRs
-        similar = await _find_similar_in_db(narrative, db, exclude_id=fir.id)
+        similar = await _find_similar_in_db(
+            narrative, db, exclude_id=fir.id,
+            crime_type=analysis.get("crime_type"),
+            accused_list=processed.get("accused", [])
+        )
 
         return AnalysisResult(
             crime_type=analysis.get("crime_type"),
@@ -328,7 +339,10 @@ async def analyze_narrative_text(
     Also checks if this narrative already exists in the database.
     """
     analysis = await gemini_service.analyze_narrative(request.narrative)
-    similar = await _find_similar_in_db(request.narrative, db, top_k=request.top_k)
+    similar = await _find_similar_in_db(
+        request.narrative, db, top_k=request.top_k,
+        crime_type=analysis.get("crime_type")
+    )
 
     # Check for duplicates
     existing = await _find_duplicate(db, narrative=request.narrative)
@@ -613,9 +627,19 @@ async def get_similar_firs(
 
 # ──────────────────────── Helper Functions ────────────────────────
 
-async def _find_similar_in_db(narrative: str, db: AsyncSession, top_k: int = 5, exclude_id: int = None, min_score: float = 0.55) -> List[SimilarFIR]:
-    """Find similar FIRs in the database using embedding similarity.
-    Only returns results with similarity score >= min_score to avoid false positives."""
+async def _find_similar_in_db(
+    narrative: str, db: AsyncSession, top_k: int = 5,
+    exclude_id: int = None, min_score: float = 0.45,
+    crime_type: str = None, accused_list: list = None
+) -> list:
+    """Find similar FIRs using multi-dimensional similarity:
+    1. Narrative embedding similarity (cosine)
+    2. Crime type matching (same crime = bonus)
+    3. Accused name matching (same accused = bonus + disambiguation details)
+
+    Returns results sorted by combined weighted score."""
+    from difflib import SequenceMatcher
+
     # Get all FIRs with embeddings
     query = select(FIR).where(FIR.embedding_vector.isnot(None))
     if exclude_id:
@@ -627,34 +651,115 @@ async def _find_similar_in_db(narrative: str, db: AsyncSession, top_k: int = 5, 
     if not all_firs:
         return []
 
-    # Encode the query narrative
+    # Load accused for all candidate FIRs
+    accused_by_fir = {}
+    for fir in all_firs:
+        acc_result = await db.execute(select(Accused).where(Accused.fir_id == fir.id))
+        accused_by_fir[fir.id] = acc_result.scalars().all()
+
+    # Encode query narrative
     query_embedding = embedding_engine.encode_narrative(narrative).reshape(1, -1)
 
-    # Compare with all stored embeddings
-    similarities = []
-    for fir in all_firs:
-        if fir.embedding_vector:
-            stored_emb = np.frombuffer(fir.embedding_vector, dtype=np.float32).reshape(1, -1)
-            sim = float(np.dot(query_embedding, stored_emb.T)[0][0])
-            # Only include results above the minimum similarity threshold
-            if sim >= min_score:
-                similarities.append((fir, sim))
+    # Normalize accused names for comparison
+    def _norm_name(name):
+        if not name:
+            return ""
+        return name.strip().lower().replace(".", "").replace(",", "")
 
-    # Sort by similarity
-    similarities.sort(key=lambda x: x[1], reverse=True)
+    def _name_similar(n1, n2):
+        """Fuzzy name matching — handles slight spelling differences."""
+        n1, n2 = _norm_name(n1), _norm_name(n2)
+        if not n1 or not n2:
+            return False
+        if n1 == n2:
+            return True
+        return SequenceMatcher(None, n1, n2).ratio() >= 0.80
+
+    # Score each candidate FIR
+    scored = []
+    for fir in all_firs:
+        # 1. Narrative similarity (0-1)
+        stored_emb = np.frombuffer(fir.embedding_vector, dtype=np.float32).reshape(1, -1)
+        narr_sim = float(np.dot(query_embedding, stored_emb.T)[0][0])
+
+        # 2. Crime type match (boolean bonus)
+        ct_match = False
+        if crime_type and fir.crime_type:
+            ct_match = crime_type.lower().strip() == fir.crime_type.lower().strip()
+
+        # 3. Accused matching
+        matched_acc = []
+        if accused_list:
+            fir_accused = accused_by_fir.get(fir.id, [])
+            for input_acc in accused_list:
+                input_name = input_acc.get("name", "")
+                for db_acc in fir_accused:
+                    if _name_similar(input_name, db_acc.name):
+                        # Determine if likely same person
+                        likely_same = False
+                        matches_count = 0
+                        if input_acc.get("father_name") and db_acc.father_name:
+                            if _name_similar(input_acc["father_name"], db_acc.father_name):
+                                matches_count += 1
+                        if input_acc.get("dob") and db_acc.dob:
+                            if input_acc["dob"].strip() == db_acc.dob.strip():
+                                matches_count += 1
+                        if input_acc.get("address") and db_acc.address:
+                            if SequenceMatcher(None, input_acc["address"].lower(), db_acc.address.lower()).ratio() >= 0.6:
+                                matches_count += 1
+                        # Same person if name matches AND at least 1 other detail matches
+                        likely_same = matches_count >= 1
+
+                        matched_acc.append(AccusedMatch(
+                            name=input_name,
+                            this_fir={
+                                "father_name": input_acc.get("father_name"),
+                                "dob": input_acc.get("dob"),
+                                "address": input_acc.get("address"),
+                            },
+                            matching_fir={
+                                "father_name": db_acc.father_name,
+                                "dob": db_acc.dob,
+                                "address": db_acc.address,
+                            },
+                            likely_same_person=likely_same,
+                        ))
+                        break  # One match per input accused
+
+        # Combined weighted score:
+        # 60% narrative similarity + 20% crime type match + 20% accused match
+        acc_score = min(len(matched_acc) / max(len(accused_list or []), 1), 1.0)
+        combined = (narr_sim * 0.6) + (0.2 if ct_match else 0.0) + (acc_score * 0.2)
+
+        if combined >= min_score or len(matched_acc) > 0:
+            scored.append({
+                "fir": fir,
+                "combined": combined,
+                "narr_sim": narr_sim,
+                "ct_match": ct_match,
+                "matched_accused": matched_acc,
+            })
+
+    # Sort by combined score
+    scored.sort(key=lambda x: x["combined"], reverse=True)
 
     return [
         SimilarFIR(
-            id=fir.id,
-            file_name=fir.file_name,
-            crime_type=fir.crime_type,
-            severity=fir.severity,
-            narrative=fir.narrative[:300] if fir.narrative else None,
-            summary_en=fir.summary_en,
-            similarity_score=round(score, 4),
-            acts=fir.acts
+            id=s["fir"].id,
+            file_name=s["fir"].file_name,
+            fir_number=s["fir"].fir_number,
+            crime_type=s["fir"].crime_type,
+            severity=s["fir"].severity,
+            narrative=s["fir"].narrative[:300] if s["fir"].narrative else None,
+            summary_en=s["fir"].summary_en,
+            similarity_score=round(s["combined"], 4),
+            acts=s["fir"].acts,
+            narrative_similarity=round(s["narr_sim"], 4),
+            crime_type_match=s["ct_match"],
+            accused_match_count=len(s["matched_accused"]),
+            matched_accused=s["matched_accused"],
         )
-        for fir, score in similarities[:top_k]
+        for s in scored[:top_k]
     ]
 
 

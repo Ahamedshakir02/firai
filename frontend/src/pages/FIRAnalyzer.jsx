@@ -370,10 +370,12 @@ export default function FIRAnalyzer() {
                 <div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Similar Cases</div>
                   {result.similar_firs.map((sim, i) => (
-                    <div key={i} className="fir-card" style={{ marginBottom: 8, cursor: 'pointer' }}
+                    <div key={i} className="fir-card" style={{ marginBottom: 10, cursor: 'pointer' }}
                          onClick={() => setExpandedSimilar(expandedSimilar === i ? null : i)}>
                       <div className="fir-header">
-                        <span className="fir-id">#{sim.id} {sim.file_name || ''}</span>
+                        <span className="fir-id">
+                          {sim.fir_number ? `Case ${sim.fir_number}` : `#${sim.id}`} {sim.file_name || ''}
+                        </span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <div className="similarity-bar">
                             <div className="fill" style={{ width: `${sim.similarity_score * 100}%` }} />
@@ -384,9 +386,79 @@ export default function FIRAnalyzer() {
                           {expandedSimilar === i ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                         </div>
                       </div>
-                      {expandedSimilar === i && sim.narrative && (
-                        <div className="narrative-box" style={{ marginTop: 8, maxHeight: 150 }}>
-                          {sim.narrative}
+
+                      {/* Match indicators */}
+                      <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                        {sim.crime_type_match && (
+                          <span className="badge badge-blue" style={{ fontSize: '0.68rem' }}>
+                            Same Crime Type
+                          </span>
+                        )}
+                        {sim.accused_match_count > 0 && (
+                          <span className="badge badge-critical" style={{ fontSize: '0.68rem' }}>
+                            {sim.accused_match_count} Accused Match{sim.accused_match_count > 1 ? 'es' : ''}
+                          </span>
+                        )}
+                        {sim.narrative_similarity != null && (
+                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                            Narrative: {(sim.narrative_similarity * 100).toFixed(0)}%
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Expanded details */}
+                      {expandedSimilar === i && (
+                        <div style={{ marginTop: 10 }}>
+                          {sim.narrative && (
+                            <div className="narrative-box" style={{ maxHeight: 120, marginBottom: 10 }}>
+                              {sim.narrative}
+                            </div>
+                          )}
+
+                          {/* Accused Comparison Table */}
+                          {sim.matched_accused?.length > 0 && (
+                            <div style={{
+                              padding: 10, borderRadius: 8,
+                              background: 'rgba(239, 68, 68, 0.05)',
+                              border: '1px solid rgba(239, 68, 68, 0.15)',
+                            }}>
+                              <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--accent-red)', marginBottom: 8, textTransform: 'uppercase' }}>
+                                Accused Identity Comparison
+                              </div>
+                              {sim.matched_accused.map((acc, j) => (
+                                <div key={j} style={{
+                                  marginBottom: j < sim.matched_accused.length - 1 ? 10 : 0,
+                                  padding: 8, borderRadius: 6,
+                                  background: acc.likely_same_person ? 'rgba(239, 68, 68, 0.08)' : 'rgba(245, 158, 11, 0.06)',
+                                  border: `1px solid ${acc.likely_same_person ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.15)'}`,
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                                    <span style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                                      {acc.name}
+                                    </span>
+                                    <span className={`badge ${acc.likely_same_person ? 'badge-critical' : 'badge-medium'}`}
+                                          style={{ fontSize: '0.65rem' }}>
+                                      {acc.likely_same_person ? '⚠ Likely Same Person' : '? Different Person'}
+                                    </span>
+                                  </div>
+                                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: '0.75rem' }}>
+                                    <div>
+                                      <div style={{ color: 'var(--text-muted)', fontSize: '0.65rem', marginBottom: 2 }}>THIS FIR</div>
+                                      <div>Father: <strong>{acc.this_fir?.father_name || '—'}</strong></div>
+                                      <div>DOB: <strong>{acc.this_fir?.dob || '—'}</strong></div>
+                                      <div>Addr: <strong>{acc.this_fir?.address?.slice(0, 40) || '—'}</strong></div>
+                                    </div>
+                                    <div>
+                                      <div style={{ color: 'var(--text-muted)', fontSize: '0.65rem', marginBottom: 2 }}>MATCHING FIR</div>
+                                      <div>Father: <strong>{acc.matching_fir?.father_name || '—'}</strong></div>
+                                      <div>DOB: <strong>{acc.matching_fir?.dob || '—'}</strong></div>
+                                      <div>Addr: <strong>{acc.matching_fir?.address?.slice(0, 40) || '—'}</strong></div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

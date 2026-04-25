@@ -12,9 +12,11 @@ from sqlalchemy import select
 
 from database import get_db
 from models.fir import FIR
+from models.officer import Officer
 from schemas.fir import LegalQueryRequest, LegalResponse
 from services import gemini_service
 from services.legal_kb import lookup_section, get_all_sections, lookup_sections_batch
+from routers.auth import require_officer
 
 router = APIRouter(prefix="/api/legal", tags=["Legal Assistant"])
 
@@ -22,7 +24,8 @@ router = APIRouter(prefix="/api/legal", tags=["Legal Assistant"])
 @router.post("/query", response_model=LegalResponse)
 async def legal_query(
     request: LegalQueryRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    officer: Officer = Depends(require_officer)
 ):
     """
     Ask a legal question. If a FIR ID is provided, the FIR narrative
@@ -49,19 +52,20 @@ async def legal_query(
 
 @router.get("/sections")
 async def list_legal_sections(
-    act: Optional[str] = Query(None, description="Filter by act (IPC or BNS)")
+    act: Optional[str] = Query(None, description="Filter by act (IPC or BNS)"),
+    officer: Officer = Depends(require_officer)
 ):
     """Get all legal sections from the knowledge base."""
     return get_all_sections(act)
 
 
 @router.get("/sections/{act}/{section}")
-async def get_section_detail(act: str, section: str):
+async def get_section_detail(act: str, section: str, officer: Officer = Depends(require_officer)):
     """Look up a specific legal section."""
     return lookup_section(act, section)
 
 
 @router.post("/sections/lookup")
-async def lookup_fir_sections(acts: list):
+async def lookup_fir_sections(acts: list, officer: Officer = Depends(require_officer)):
     """Look up all sections for a given FIR's acts list."""
     return lookup_sections_batch(acts)

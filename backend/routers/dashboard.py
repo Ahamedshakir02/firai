@@ -12,13 +12,18 @@ from collections import Counter
 
 from database import get_db
 from models.fir import FIR
+from models.officer import Officer
 from schemas.fir import DashboardStats, FIRListItem
+from routers.auth import require_officer
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 
 
 @router.get("/stats", response_model=DashboardStats)
-async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
+async def get_dashboard_stats(
+    db: AsyncSession = Depends(get_db),
+    officer: Officer = Depends(require_officer)
+):
     """Get dashboard overview statistics."""
 
     # Total FIRs

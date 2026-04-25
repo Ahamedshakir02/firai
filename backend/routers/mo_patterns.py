@@ -11,21 +11,29 @@ from sqlalchemy import select
 
 from database import get_db
 from models.fir import FIR, MOPattern
+from models.officer import Officer
 from schemas.fir import MOPatternResponse
 from services import mo_detector
+from routers.auth import require_officer
 
 router = APIRouter(prefix="/api/mo", tags=["MO Patterns"])
 
 
 @router.get("/patterns", response_model=List[MOPatternResponse])
-async def list_mo_patterns(db: AsyncSession = Depends(get_db)):
+async def list_mo_patterns(
+    db: AsyncSession = Depends(get_db),
+    officer: Officer = Depends(require_officer)
+):
     """List all detected MO patterns."""
     result = await db.execute(select(MOPattern).order_by(MOPattern.occurrence_count.desc()))
     return result.scalars().all()
 
 
 @router.post("/detect", response_model=List[MOPatternResponse])
-async def detect_mo_patterns(db: AsyncSession = Depends(get_db)):
+async def detect_mo_patterns(
+    db: AsyncSession = Depends(get_db),
+    officer: Officer = Depends(require_officer)
+):
     """
     Run MO pattern detection on all FIR narratives in the database.
     Analyzes narratives to find recurring crime methods.

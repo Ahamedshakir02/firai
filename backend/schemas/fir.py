@@ -75,16 +75,31 @@ class FIRDetail(FIRListItem):
     class Config:
         from_attributes = True
 
+class AccusedMatch(BaseModel):
+    """Represents a matched accused person between two FIRs."""
+    name: str
+    this_fir: Optional[dict] = None     # {father_name, dob, address} from current FIR
+    matching_fir: Optional[dict] = None  # {father_name, dob, address} from similar FIR
+    likely_same_person: bool = False      # True if distinguishing details match
+
 
 class SimilarFIR(BaseModel):
     id: int
     file_name: Optional[str] = None
+    fir_number: Optional[str] = None
     crime_type: Optional[str] = None
     severity: Optional[str] = None
     narrative: Optional[str] = None
     summary_en: Optional[str] = None
     similarity_score: float
     acts: Optional[list] = None
+
+    # Multi-dimensional similarity breakdown
+    narrative_similarity: Optional[float] = None  # Embedding cosine score
+    crime_type_match: bool = False                 # Same crime type?
+    accused_match_count: int = 0                   # Number of matched accused
+    matched_accused: List[AccusedMatch] = []       # Detailed accused comparison
+
 
 
 class AnalysisResult(BaseModel):

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { legalAPI } from '../api/client';
-import { Send, Scale, BookOpen, Loader, Bot, User } from 'lucide-react';
+import { Send, Scale, BookOpen, Loader, Bot, User, Trash2 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export default function LegalAssistant() {
   const [messages, setMessages] = useState([
@@ -14,6 +15,14 @@ export default function LegalAssistant() {
   const [sections, setSections] = useState([]);
   const [showSections, setShowSections] = useState(false);
   const messagesEnd = useRef(null);
+  const { officer } = useAuth();
+
+  const clearChat = () => {
+    setMessages([{
+      role: 'ai',
+      content: 'Chat cleared. How can I help you with your investigation?',
+    }]);
+  };
 
   useEffect(() => {
     messagesEnd.current?.scrollIntoView({ behavior: 'smooth' });
@@ -77,7 +86,15 @@ export default function LegalAssistant() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <Scale size={20} color="var(--accent-gold)" />
               <div className="card-title">Legal Chat</div>
+              {officer && (
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+                  {officer.name}
+                </span>
+              )}
             </div>
+            <button className="btn btn-ghost btn-sm" onClick={clearChat} title="Clear chat history">
+              <Trash2 size={14} /> Clear
+            </button>
           </div>
 
           <div className="chat-messages" style={{ flex: 1 }}>
@@ -91,7 +108,7 @@ export default function LegalAssistant() {
                       <User size={14} />
                     )}
                     <span style={{ fontSize: '0.72rem', fontWeight: 600, opacity: 0.7 }}>
-                      {msg.role === 'ai' ? 'AI Legal Assistant' : 'You'}
+                      {msg.role === 'ai' ? 'AI Legal Assistant' : (officer?.name || 'You')}
                     </span>
                   </div>
                   <div style={{ whiteSpace: 'pre-line' }}>{msg.content}</div>

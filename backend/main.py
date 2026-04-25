@@ -13,9 +13,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from database import init_db
 from seed import seed_database
+from seed_officers import seed_officers
 from routers import firs, dashboard, legal, mo_patterns, translate
+from routers import auth
 from services.embedding_engine import embedding_engine
 from config import get_settings
+
+# Ensure Officer/RegistrationRequest tables are created
+import models.officer  # noqa: F401
 
 
 @asynccontextmanager
@@ -24,6 +29,9 @@ async def lifespan(app: FastAPI):
     # Startup
     print("[FirAI] Initializing database...")
     await init_db()
+
+    print("[FirAI] Seeding demo officers...")
+    await seed_officers()
 
     print("[FirAI] Seeding database with existing FIRs...")
     await seed_database()
@@ -43,7 +51,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="FirAI — Kerala Police AI Investigation Assistant",
     description="AI-powered FIR analysis, case intelligence, and legal guidance for Kerala Police",
-    version="1.0.0",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
@@ -60,6 +68,7 @@ app.add_middleware(
 )
 
 # Mount routers
+app.include_router(auth.router)       # Auth must be first (public login/register routes)
 app.include_router(firs.router)
 app.include_router(dashboard.router)
 app.include_router(legal.router)
@@ -69,7 +78,7 @@ app.include_router(translate.router)
 
 @app.get("/api/health")
 async def health_check():
-    """Health check endpoint with service status."""
+    """Health check endpoint with service status (public — no auth required)."""
     settings = get_settings()
     return {
         "status": "healthy",
