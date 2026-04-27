@@ -198,7 +198,7 @@ export default function CaseIntelligence() {
                   </span>
                 )}
               </div>
-              <button className="btn btn-ghost btn-sm" onClick={() => downloadFIR(selectedFIR)} title="Download FIR as JSON">
+              <button className="btn btn-ghost btn-sm" onClick={() => downloadFIR(selectedFIR)} title="Download FIR Document">
                 <Download size={14} />
               </button>
               <button className="btn btn-ghost btn-sm" onClick={() => { setSelectedFIR(null); setSimilarFIRs([]); }}>
