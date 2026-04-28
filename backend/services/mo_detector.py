@@ -2,12 +2,12 @@
 MO (Modus Operandi) Detector Service
 --------------------------------------
 Detects recurring crime patterns across FIR narratives
-using embedding clustering and Gemini analysis.
+using embedding clustering and FirAI Engine classification.
 """
 
 from typing import List, Optional
 from services.embedding_engine import embedding_engine, strip_fir_boilerplate
-from services import gemini_service
+from services import firai_engine
 import numpy as np
 from sklearn.cluster import DBSCAN
 
@@ -17,7 +17,7 @@ async def detect_patterns_from_narratives(narratives: List[dict]) -> list:
     Detect MO patterns from a list of FIR narrative dicts.
     Each dict should have 'id', 'narrative', and optionally 'crime_type'.
 
-    Uses both embedding clustering and Gemini analysis.
+    Uses both embedding clustering and FirAI Engine classification.
     Strips FIR boilerplate first so patterns are based on actual crime content,
     not shared FIR template format.
     """
@@ -31,8 +31,8 @@ async def detect_patterns_from_narratives(narratives: List[dict]) -> list:
         cleaned = strip_fir_boilerplate(raw) if raw else ""
         cleaned_narratives.append(cleaned)
 
-    # Method 1: Use Gemini for intelligent pattern detection
-    gemini_patterns = await gemini_service.detect_mo_patterns(cleaned_narratives)
+    # Method 1: Use FirAI Engine for pattern detection
+    firai_patterns = await firai_engine.detect_mo_patterns(cleaned_narratives)
 
     # Method 2: Embedding-based clustering for additional pattern detection
     cluster_input = [
@@ -45,14 +45,14 @@ async def detect_patterns_from_narratives(narratives: List[dict]) -> list:
     # Merge results
     all_patterns = []
 
-    for p in gemini_patterns:
+    for p in firai_patterns:
         all_patterns.append({
             "pattern_name": p.get("pattern_name", "Unknown Pattern"),
             "description": p.get("description", ""),
             "crime_type": p.get("crime_type", ""),
             "occurrence_count": p.get("occurrence_count", 0),
             "linked_fir_ids": p.get("linked_firs", []),
-            "source": "gemini"
+            "source": "firai_engine"
         })
 
     for p in cluster_patterns:

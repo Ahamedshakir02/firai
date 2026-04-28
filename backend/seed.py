@@ -13,7 +13,7 @@ from sqlalchemy import select, func
 from database import engine, async_session, Base
 from models.fir import FIR, Accused
 from services.embedding_engine import embedding_engine
-from services import gemini_service
+from services import firai_engine
 from services.fir_processor import extract_fir_number
 from config import get_settings
 
@@ -68,8 +68,8 @@ async def seed_database():
                         except ValueError:
                             continue
 
-                # Use fallback analysis (don't hit Gemini API during seed to avoid quota)
-                analysis = gemini_service._fallback_analysis(narrative)
+                # Use custom FirAI Engine for analysis
+                analysis = firai_engine._fallback_analysis(narrative)
 
                 # Extract FIR number from full_text if available
                 fir_num = None

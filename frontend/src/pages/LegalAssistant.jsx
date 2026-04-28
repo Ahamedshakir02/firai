@@ -77,7 +77,7 @@ export default function LegalAssistant() {
   return (
     <>
       <h1 className="page-title">Legal Assistant</h1>
-      <p className="page-description">AI-powered legal guidance using Gemini — ask about IPC, BNS, procedures</p>
+      <p className="page-description">AI-powered legal guidance — ask about IPC, BNS, CrPC procedures and sections</p>
 
       <div className="grid-2">
         {/* Chat Panel */}

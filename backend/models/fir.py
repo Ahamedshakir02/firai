@@ -21,7 +21,7 @@ class FIR(Base):
     narrative_ml = Column(Text, nullable=True)        # Malayalam original (if narrative is English)
     full_text = Column(Text)                          # Full OCR text for reference
 
-    # AI-derived from narrative (populated by Gemini)
+    # AI-derived from narrative (populated by FirAI Engine)
     crime_type = Column(String(100))
     severity = Column(String(20))                     # low, medium, high, critical
     risk_score = Column(Float)

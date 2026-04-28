@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://firai:firai_secret@db:5432/firai_db"
 
     # AI Services
-    GEMINI_API_KEY: str = ""
+    GEMINI_API_KEY: str = ""  # DEPRECATED — FirAI now uses custom AI engine
     BHASHINI_API_KEY: str = ""
     BHASHINI_USER_ID: str = ""
 
@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     STORAGE_DIR: str = os.path.join(os.path.dirname(__file__), "storage")
     RAW_PDFS_DIR: str = os.path.join(os.path.dirname(__file__), "data", "raw_pdfs")
     STRUCTURED_DIR: str = os.path.join(os.path.dirname(__file__), "data", "structured")
+
+    # Custom AI Engine
+    LOCAL_MODEL_DIR: str = os.path.join(os.path.dirname(__file__), "ai_engine", "trained_models")
 
     # Embedding model
     EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"

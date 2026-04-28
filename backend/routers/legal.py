@@ -1,8 +1,8 @@
 """
 Legal Assistant Router
 ----------------------
-Endpoints for AI-powered legal guidance using Gemini
-and the built-in IPC/BNS knowledge base.
+Endpoints for AI-powered legal guidance using the custom
+FirAI Engine and the built-in IPC/BNS knowledge base.
 """
 
 from typing import Optional
@@ -14,7 +14,7 @@ from database import get_db
 from models.fir import FIR
 from models.officer import Officer
 from schemas.fir import LegalQueryRequest, LegalResponse
-from services import gemini_service
+from services import firai_engine
 from services.legal_kb import lookup_section, get_all_sections, lookup_sections_batch
 from routers.auth import require_officer
 
@@ -41,7 +41,7 @@ async def legal_query(
             context = fir.narrative or ""
             source_firs = [{"id": fir.id, "file_name": fir.file_name}]
 
-    response = await gemini_service.legal_query(request.question, context)
+    response = await firai_engine.legal_query(request.question, context)
 
     return LegalResponse(
         answer=response.get("answer", "No answer available"),

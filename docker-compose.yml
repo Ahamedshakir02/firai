@@ -26,7 +26,7 @@ services:
         condition: service_healthy
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://firai:firai_secret@db:5432/firai_db}
-      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      # No GEMINI_API_KEY needed — FirAI uses custom AI engine
       - BHASHINI_API_KEY=${BHASHINI_API_KEY:-}
       - BHASHINI_USER_ID=${BHASHINI_USER_ID:-}
       - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY:-}

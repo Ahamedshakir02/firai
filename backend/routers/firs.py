@@ -24,7 +24,8 @@ from schemas.fir import (
     NarrativeAnalyzeRequest, FIRListItem, FIRDetail,
     SimilarFIR, AccusedMatch, AnalysisResult, BulkUploadResponse
 )
-from services import fir_processor, gemini_service
+from services import fir_processor
+from services import firai_engine
 from services.embedding_engine import embedding_engine
 from routers.auth import require_officer
 
@@ -253,8 +254,8 @@ async def upload_fir_pdf(
         narrative = processed["narrative"]
         fir_number = processed.get("fir_number")
 
-        # Analyze narrative with Gemini
-        analysis = await gemini_service.analyze_narrative(narrative)
+        # Analyze narrative with FirAI Engine (custom AI)
+        analysis = await firai_engine.analyze_narrative(narrative)
 
         # Check for duplicates
         existing = await _find_duplicate(db, fir_number=fir_number, narrative=narrative)
@@ -360,7 +361,7 @@ async def analyze_narrative_text(
     Does NOT save to database — just returns analysis.
     Also checks if this narrative already exists in the database.
     """
-    analysis = await gemini_service.analyze_narrative(request.narrative)
+    analysis = await firai_engine.analyze_narrative(request.narrative)
     similar = await _find_similar_in_db(
         request.narrative, db, top_k=request.top_k,
         crime_type=analysis.get("crime_type")
@@ -393,7 +394,7 @@ async def analyze_and_save_narrative(
     Analyze a narrative and save it as a new FIR in the database.
     Checks for duplicates first — returns existing FIR if found.
     """
-    analysis = await gemini_service.analyze_narrative(request.narrative)
+    analysis = await firai_engine.analyze_narrative(request.narrative)
 
     # Check for duplicates before saving
     existing = await _find_duplicate(db, narrative=request.narrative)
@@ -481,11 +482,11 @@ async def bulk_upload_firs(
                 os.unlink(temp_path)
                 continue
 
-            # Analyze narrative with Gemini
+            # Analyze narrative with FirAI Engine (custom AI)
             try:
-                analysis = await gemini_service.analyze_narrative(narrative)
+                analysis = await firai_engine.analyze_narrative(narrative)
             except Exception:
-                analysis = gemini_service._fallback_analysis(narrative)
+                analysis = firai_engine._fallback_analysis(narrative)
 
             # Create FIR record
             fir = FIR(
@@ -575,11 +576,11 @@ async def bulk_upload_json(
                 duplicates.append(f"{dup_label} (matches existing FIR #{existing.id})")
                 continue
 
-            # Analyze narrative
+            # Analyze narrative with FirAI Engine (custom AI)
             try:
-                analysis = await gemini_service.analyze_narrative(narrative)
+                analysis = await firai_engine.analyze_narrative(narrative)
             except Exception:
-                analysis = gemini_service._fallback_analysis(narrative)
+                analysis = firai_engine._fallback_analysis(narrative)
 
             fir = FIR(
                 file_name=data.get("file", file.filename),

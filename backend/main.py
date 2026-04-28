@@ -17,6 +17,7 @@ from seed_officers import seed_officers
 from routers import firs, dashboard, legal, mo_patterns, translate
 from routers import auth
 from services.embedding_engine import embedding_engine
+from services.firai_engine import warmup as warmup_ai_engine
 from config import get_settings
 
 # Ensure Officer/RegistrationRequest tables are created
@@ -40,6 +41,10 @@ async def lifespan(app: FastAPI):
     import asyncio
     await asyncio.to_thread(embedding_engine.warmup)
     print("[FirAI] Embedding model ready.")
+
+    print("[FirAI] Loading custom AI engine...")
+    await asyncio.to_thread(warmup_ai_engine)
+    print("[FirAI] Custom AI engine ready.")
 
     print("[FirAI] Backend ready!")
     yield
@@ -83,6 +88,6 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "FirAI Backend",
-        "gemini_configured": bool(settings.GEMINI_API_KEY),
+        "ai_engine": "firai-engine-v1 (custom built)",
         "bhashini_configured": bool(settings.BHASHINI_API_KEY),
     }
