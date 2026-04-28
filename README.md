@@ -393,8 +393,10 @@ You should see **36 FIRs** already loaded in the Case Intelligence page, sorted 
 
 | Feature | Page | Description |
 |---|---|---|
-| **Authentication** | `/login`, `/profile` | JWT-protected access, officer registration portal, and admin approval workflow |
-| **Dashboard** | `/` | Crime stats, severity breakdown, recent FIRs |
+| **Authentication** | `/login` | JWT-protected access with badge number + password login |
+| **Officer Profile** | `/profile` | View current officer details, admin panel for managing registration requests |
+| **Registration Portal** | `/login` (register tab) | New officer registration request with admin approval workflow |
+| **Dashboard** | `/` | Crime stats, severity breakdown, monthly trends, recent FIRs |
 | **FIR Analyzer** | `/fir-analyzer` | Upload PDF or paste narrative → Custom AI classifies crime, extracts sections, suggests investigation steps |
 | **Case Intelligence** | `/case-intelligence` | Browse & search FIRs by case number, multi-dimensional smart similarity (accused match & embeddings) with direct PDF downloads |
 | **Legal Assistant** | `/legal-assistant` | Query the Indian legal knowledge base for IPC/BNS guidance, bail info, CrPC procedures |
@@ -417,6 +419,7 @@ firai/
 │   ├── config.py              # Settings loaded from .env
 │   ├── database.py            # SQLAlchemy async engine + session
 │   ├── seed.py                # Seeds 36 existing FIRs on first boot
+│   ├── seed_officers.py       # Seeds demo officer accounts
 │   ├── requirements.txt
 │   ├── ai_engine/             # 🧠 Custom AI System
 │   │   ├── data/
@@ -432,11 +435,13 @@ firai/
 │   ├── training/
 │   │   └── train_classifier.py      # Training script (Colab/local)
 │   ├── models/
-│   │   └── fir.py             # FIR, Accused, MOPattern ORM models
+│   │   ├── fir.py             # FIR, Accused, MOPattern, LegalSection ORM models
+│   │   └── officer.py         # Officer, RegistrationRequest ORM models
 │   ├── routers/
-│   │   ├── firs.py            # FIR upload, analysis, similarity search
+│   │   ├── auth.py            # JWT authentication, registration, admin approval
+│   │   ├── firs.py            # FIR upload, analysis, similarity search, export
 │   │   ├── dashboard.py       # Statistics endpoint
-│   │   ├── legal.py           # Legal Q&A
+│   │   ├── legal.py           # Legal Q&A, section lookup
 │   │   ├── mo_patterns.py     # MO pattern detection
 │   │   └── translate.py       # Translation endpoint
 │   ├── schemas/
@@ -445,9 +450,10 @@ firai/
 │   │   ├── firai_engine.py    # 🧠 Main AI service (replaces Gemini)
 │   │   ├── embedding_engine.py# Sentence-Transformer similarity search
 │   │   ├── fir_processor.py   # PDF OCR + field extraction
-│   │   ├── bhashini_service.py# Malayalam translation
+│   │   ├── bhashini_service.py# Malayalam translation (Bhashini + Google fallback)
 │   │   ├── legal_kb.py        # IPC/BNS knowledge base
 │   │   └── mo_detector.py     # MO pattern detection logic
+│   ├── storage/               # Runtime file storage
 │   └── data/
 │       ├── structured/        # 36 pre-processed FIR JSON files
 │       └── raw_pdfs/          # Original FIR PDF documents
@@ -457,13 +463,23 @@ firai/
     ├── package.json
     └── src/
         ├── main.jsx           # App entry point
-        ├── App.jsx            # Router setup
+        ├── App.jsx            # Router setup + ProtectedRoute wrapper
+        ├── App.css            # App-level styles
         ├── index.css          # Global design system
         ├── api/
-        │   └── client.js      # Axios API client (all endpoints)
+        │   └── client.js      # Axios API client (all endpoints + JWT interceptor)
+        ├── context/
+        │   └── AuthContext.jsx # Authentication context provider
         ├── components/
-        │   └── Layout/        # Sidebar, Header, Layout wrapper
+        │   ├── Layout/        # Sidebar, Header, Layout wrapper
+        │   ├── Dashboard/     # Dashboard sub-components
+        │   ├── FIR/           # FIR-related sub-components
+        │   ├── Legal/         # Legal assistant sub-components
+        │   ├── MO/            # MO pattern sub-components
+        │   └── common/        # Shared/reusable components
         └── pages/
+            ├── Login.jsx          # Officer login + registration request
+            ├── Profile.jsx        # Officer profile + admin panel
             ├── Dashboard.jsx
             ├── FIRAnalyzer.jsx
             ├── CaseIntelligence.jsx
@@ -487,6 +503,7 @@ All variables are set in the `.env` file in the project root.
 | `BHASHINI_API_KEY` | ❌ | — | Bhashini API for Malayalam ↔ English translation |
 | `BHASHINI_USER_ID` | ❌ | — | Bhashini user ID |
 | `GOOGLE_MAPS_API_KEY` | ❌ | — | Reserved for future map integration |
+| `CORS_ORIGINS` | ❌ | `localhost:3000` | Comma-separated allowed CORS origins |
 
 > **Note:** `GEMINI_API_KEY` is no longer required. FirAI uses its own custom AI engine.
 
@@ -496,23 +513,47 @@ All variables are set in the `.env` file in the project root.
 
 The full interactive API docs are available at **http://localhost:8000/docs** when running.
 
+### Authentication (Public)
+
 | Endpoint | Method | Description |
 |---|---|---|
-| `/api/health` | `GET` | Health check |
-| `/api/auth/login` | `POST` | Authenticate officer and receive JWT |
-| `/api/auth/register-request` | `POST` | Request platform access |
+| `/api/health` | `GET` | Health check with service status |
+| `/api/auth/login` | `POST` | Authenticate officer with badge number + password |
+| `/api/auth/register-request` | `POST` | Submit a new officer registration request |
+
+### Authentication (Protected)
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/auth/me` | `GET` | Get current logged-in officer's profile |
+| `/api/auth/registration-requests` | `GET` | Admin: list all registration requests |
+| `/api/auth/registration-requests/{id}/approve` | `POST` | Admin: approve a registration request |
+| `/api/auth/registration-requests/{id}/reject` | `POST` | Admin: reject a registration request |
+
+### FIRs (All protected — require JWT)
+
+| Endpoint | Method | Description |
+|---|---|---|
 | `/api/firs` | `GET` | List FIRs (filter by crime type, severity, search) |
-| `/api/firs/{id}` | `GET` | Get full FIR details |
-| `/api/firs/{id}/download`| `GET` | Download the actual FIR PDF file |
+| `/api/firs/{id}` | `GET` | Get full FIR details with accused |
+| `/api/firs/{id}/download` | `GET` | Download FIR as PDF (or JSON fallback) |
+| `/api/firs/{id}/similar` | `GET` | Find similar FIRs (multi-dimensional similarity) |
 | `/api/firs/upload-pdf` | `POST` | Upload & analyse a single FIR PDF |
-| `/api/firs/analyze-text` | `POST` | Analyse pasted narrative text |
+| `/api/firs/analyze-text` | `POST` | Analyse pasted narrative text (no save) |
 | `/api/firs/analyze-and-save` | `POST` | Analyse and persist narrative as a new FIR |
 | `/api/firs/bulk-upload` | `POST` | Bulk upload multiple FIR PDFs |
 | `/api/firs/bulk-upload-json` | `POST` | Bulk upload pre-processed JSON files |
-| `/api/firs/{id}/similar` | `GET` | Find similar FIRs by narrative embedding |
+| `/api/firs/export/all` | `GET` | Export all FIRs as JSON for backup |
+
+### Dashboard, Legal, MO, Translation (All protected)
+
+| Endpoint | Method | Description |
+|---|---|---|
 | `/api/dashboard/stats` | `GET` | Aggregated statistics for dashboard |
 | `/api/legal/query` | `POST` | Query the legal knowledge base |
 | `/api/legal/sections` | `GET` | Browse IPC/BNS legal sections |
+| `/api/legal/sections/{act}/{section}` | `GET` | Look up a specific legal section |
+| `/api/legal/sections/lookup` | `POST` | Batch look up sections for a FIR's acts list |
 | `/api/mo/patterns` | `GET` | List detected MO patterns |
 | `/api/mo/detect` | `POST` | Run MO pattern detection across all FIRs |
 | `/api/translate` | `POST` | Translate text (Malayalam ↔ English) |
@@ -581,14 +622,14 @@ Then restart Docker Desktop.
 
 | Layer | Technology | Purpose |
 |---|---|---|
-| **Frontend** | React 19, Vite, React Router v6, Recharts, Lucide Icons | Dashboard UI |
-| **Backend** | Python 3.11, FastAPI, SQLAlchemy (async), Pydantic v2, python-jose, passlib | REST API |
-| **Database** | PostgreSQL 16 | FIR storage |
-| **AI Engine** | Custom BiLSTM + Attention (PyTorch), trained on IPC/BNS legal corpus | Crime classification, entity extraction, legal mapping |
+| **Frontend** | React 19, Vite 8, React Router v7, Recharts, Lucide Icons, Axios | Dashboard UI |
+| **Backend** | Python 3.11, FastAPI 0.115, SQLAlchemy 2.0 (async), Pydantic v2, python-jose, passlib | REST API + JWT Auth |
+| **Database** | PostgreSQL 16 (Alpine) | FIR storage + officer accounts |
+| **AI Engine** | Custom BiLSTM + Attention (PyTorch CPU), trained on IPC/BNS legal corpus | Crime classification, entity extraction, legal mapping |
 | **Legal KB** | Indian Legal Corpus (IPC, BNS, CrPC, BNSS, Kerala Police Act) | Legal Q&A, section mapping, investigation steps |
 | **Embeddings** | `all-MiniLM-L6-v2` (Sentence-Transformers) | Narrative similarity search |
 | **OCR** | PyMuPDF + Tesseract OCR (`mal+eng`) | PDF text extraction |
-| **Translation** | Bhashini API (AI4Bharat) | Malayalam ↔ English |
+| **Translation** | Bhashini API (AI4Bharat) + Google Translate fallback (deep-translator) | Malayalam ↔ English |
 | **Containerisation** | Docker, Docker Compose | One-command deployment |
 
 ---
