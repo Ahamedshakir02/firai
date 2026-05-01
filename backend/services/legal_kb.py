@@ -1,70 +1,100 @@
 """
 Legal Knowledge Base Service
 -----------------------------
-Built-in IPC/BNS section reference data.
+Unified legal reference — derives ALL data from legal_corpus.py.
+Single source of truth for both AI engine and Legal Reference panel.
+
 Provides section descriptions, bail status, punishment details.
 """
 
-# Common IPC sections found in Kerala FIRs
-IPC_SECTIONS = {
-    "294": {"description": "Obscene acts and songs", "offense_type": "Public nuisance", "cognizable": True, "bailable": True, "punishment": "Up to 3 months imprisonment, or fine, or both"},
-    "294(b)": {"description": "Sings, recites or utters any obscene song, ballad or words in or near any public place", "offense_type": "Public nuisance", "cognizable": True, "bailable": True, "punishment": "Up to 3 months imprisonment, or fine, or both"},
-    "302": {"description": "Murder", "offense_type": "Murder", "cognizable": True, "bailable": False, "punishment": "Death or imprisonment for life, and fine"},
-    "304": {"description": "Culpable homicide not amounting to murder", "offense_type": "Homicide", "cognizable": True, "bailable": False, "punishment": "Imprisonment for life, or up to 10 years, and fine"},
-    "307": {"description": "Attempt to murder", "offense_type": "Attempt to murder", "cognizable": True, "bailable": False, "punishment": "Up to 10 years imprisonment, and fine"},
-    "323": {"description": "Voluntarily causing hurt", "offense_type": "Assault", "cognizable": True, "bailable": True, "punishment": "Up to 1 year imprisonment, or fine up to Rs 1000, or both"},
-    "324": {"description": "Voluntarily causing hurt by dangerous weapons or means", "offense_type": "Assault with weapon", "cognizable": True, "bailable": False, "punishment": "Up to 3 years imprisonment, or fine, or both"},
-    "341": {"description": "Wrongful restraint", "offense_type": "Restraint", "cognizable": False, "bailable": True, "punishment": "Up to 1 month imprisonment, or fine up to Rs 500, or both"},
-    "354": {"description": "Assault or criminal force to woman with intent to outrage her modesty", "offense_type": "Sexual offense", "cognizable": True, "bailable": False, "punishment": "1 to 5 years imprisonment, and fine"},
-    "376": {"description": "Rape", "offense_type": "Sexual offense", "cognizable": True, "bailable": False, "punishment": "7 years to life imprisonment, and fine"},
-    "379": {"description": "Theft", "offense_type": "Theft", "cognizable": True, "bailable": False, "punishment": "Up to 3 years imprisonment, or fine, or both"},
-    "380": {"description": "Theft in dwelling house", "offense_type": "Theft", "cognizable": True, "bailable": False, "punishment": "Up to 7 years imprisonment, and fine"},
-    "392": {"description": "Robbery", "offense_type": "Robbery", "cognizable": True, "bailable": False, "punishment": "Up to 10 years rigorous imprisonment, and fine"},
-    "395": {"description": "Dacoity", "offense_type": "Dacoity", "cognizable": True, "bailable": False, "punishment": "Up to life imprisonment, and fine"},
-    "406": {"description": "Criminal breach of trust", "offense_type": "Breach of trust", "cognizable": False, "bailable": True, "punishment": "Up to 3 years imprisonment, or fine, or both"},
-    "420": {"description": "Cheating and dishonestly inducing delivery of property", "offense_type": "Cheating", "cognizable": True, "bailable": False, "punishment": "Up to 7 years imprisonment, and fine"},
-    "427": {"description": "Mischief causing damage to amount of fifty rupees or upwards", "offense_type": "Property damage", "cognizable": True, "bailable": True, "punishment": "Up to 2 years imprisonment, or fine, or both"},
-    "447": {"description": "Criminal trespass", "offense_type": "Trespass", "cognizable": False, "bailable": True, "punishment": "Up to 3 months imprisonment, or fine up to Rs 500, or both"},
-    "448": {"description": "House-trespass", "offense_type": "Trespass", "cognizable": True, "bailable": True, "punishment": "Up to 1 year imprisonment, or fine up to Rs 1000, or both"},
-    "506": {"description": "Criminal intimidation", "offense_type": "Intimidation", "cognizable": False, "bailable": True, "punishment": "Up to 2 years imprisonment, or fine, or both"},
-}
+from ai_engine.data.legal_corpus import LEGAL_CORPUS
 
-# BNS (Bharatiya Nyaya Sanhita) sections - new criminal code
-BNS_SECTIONS = {
-    "100": {"description": "Murder", "offense_type": "Murder", "cognizable": True, "bailable": False, "punishment": "Death or imprisonment for life, and fine"},
-    "103": {"description": "Murder", "offense_type": "Murder", "cognizable": True, "bailable": False, "punishment": "Death or imprisonment for life, and fine"},
-    "109": {"description": "Attempt to murder", "offense_type": "Attempt to murder", "cognizable": True, "bailable": False, "punishment": "Up to 10 years imprisonment, and fine"},
-    "115": {"description": "Voluntarily causing hurt", "offense_type": "Assault", "cognizable": True, "bailable": True, "punishment": "Up to 1 year imprisonment, or fine, or both"},
-    "115(2)": {"description": "Voluntarily causing hurt (grave)", "offense_type": "Assault", "cognizable": True, "bailable": False, "punishment": "Up to 5 years, or fine, or both"},
-    "117": {"description": "Voluntarily causing grievous hurt", "offense_type": "Grievous hurt", "cognizable": True, "bailable": False, "punishment": "Up to 7 years imprisonment, and fine"},
-    "126(2)": {"description": "Wrongful restraint/confinement", "offense_type": "Restraint", "cognizable": True, "bailable": True, "punishment": "Up to 1 year imprisonment, or fine, or both"},
-    "303": {"description": "Theft", "offense_type": "Theft", "cognizable": True, "bailable": False, "punishment": "Up to 3 years imprisonment, or fine, or both"},
-    "308": {"description": "Extortion", "offense_type": "Extortion", "cognizable": True, "bailable": False, "punishment": "Up to 3 years imprisonment, or fine, or both"},
-    "309": {"description": "Robbery", "offense_type": "Robbery", "cognizable": True, "bailable": False, "punishment": "Up to 10 years rigorous imprisonment, and fine"},
-    "316": {"description": "Criminal breach of trust", "offense_type": "Breach of trust", "cognizable": False, "bailable": True, "punishment": "Up to 3 years imprisonment, or fine, or both"},
-    "316(2)": {"description": "Criminal breach of trust by carrier, banker, etc.", "offense_type": "Breach of trust", "cognizable": True, "bailable": False, "punishment": "Up to 7 years imprisonment, and fine"},
-    "318": {"description": "Cheating", "offense_type": "Cheating", "cognizable": True, "bailable": True, "punishment": "Up to 3 years imprisonment, or fine, or both"},
-    "318(4)": {"description": "Cheating and dishonestly inducing delivery of property", "offense_type": "Cheating", "cognizable": True, "bailable": False, "punishment": "Up to 7 years imprisonment, and fine"},
-    "329": {"description": "Criminal trespass and house trespass", "offense_type": "Trespass", "cognizable": True, "bailable": True, "punishment": "Up to 3 months imprisonment, or fine, or both"},
-    "329(4)": {"description": "House trespass with violence", "offense_type": "Trespass", "cognizable": True, "bailable": False, "punishment": "Up to 1 year imprisonment, and fine"},
-    "351": {"description": "Criminal intimidation", "offense_type": "Intimidation", "cognizable": False, "bailable": True, "punishment": "Up to 2 years imprisonment, or fine, or both"},
-    "3(5)": {"description": "Common intention (joint liability)", "offense_type": "General", "cognizable": None, "bailable": None, "punishment": "As per the main offense"},
-}
+
+def _build_section_index():
+    """Build a fast lookup index: (act_key, section) → corpus entry."""
+    index = {}
+    for entry in LEGAL_CORPUS:
+        act_upper = entry["act"].upper()
+        section = entry["section"]
+
+        # Normalize act names to standard keys
+        if "IPC" in act_upper or "INDIAN PENAL" in act_upper:
+            key = "IPC"
+        elif "BNS" in act_upper and "BNSS" not in act_upper:
+            key = "BNS"
+        elif "BNSS" in act_upper:
+            key = "BNSS"
+        elif "ABKARI" in act_upper:
+            key = "ABKARI"
+        elif "MV" in act_upper or "MOTOR VEHICLE" in act_upper:
+            key = "MV_ACT"
+        elif "NDPS" in act_upper:
+            key = "NDPS"
+        elif "POCSO" in act_upper:
+            key = "POCSO"
+        elif "SC/ST" in act_upper or "POA" in act_upper:
+            key = "SC_ST"
+        elif "ARMS" in act_upper:
+            key = "ARMS"
+        elif "IT ACT" in act_upper:
+            key = "IT_ACT"
+        elif "CRPC" in act_upper:
+            key = "CRPC"
+        else:
+            key = act_upper
+
+        index[(key, section)] = entry
+    return index
+
+
+# Build index once at module load
+_SECTION_INDEX = _build_section_index()
 
 
 def lookup_section(act: str, section: str) -> dict:
     """Look up a legal section by act name and section number."""
     act_upper = act.upper()
 
+    # Try to match act name to a key
+    act_keys = []
     if "IPC" in act_upper or "INDIAN PENAL" in act_upper:
-        data = IPC_SECTIONS.get(section, {})
-        if data:
-            return {"act": "Indian Penal Code (IPC)", "section": section, **data}
+        act_keys = ["IPC"]
+    elif "BNS" in act_upper and "BNSS" not in act_upper:
+        act_keys = ["BNS"]
+    elif "BNSS" in act_upper:
+        act_keys = ["BNSS"]
+    elif "ABKARI" in act_upper:
+        act_keys = ["ABKARI"]
+    elif "MV" in act_upper or "MOTOR" in act_upper:
+        act_keys = ["MV_ACT"]
+    elif "NDPS" in act_upper:
+        act_keys = ["NDPS"]
+    elif "POCSO" in act_upper:
+        act_keys = ["POCSO"]
+    elif "SC/ST" in act_upper or "POA" in act_upper:
+        act_keys = ["SC_ST"]
+    elif "ARMS" in act_upper:
+        act_keys = ["ARMS"]
+    elif "IT" in act_upper:
+        act_keys = ["IT_ACT"]
+    elif "CRPC" in act_upper:
+        act_keys = ["CRPC"]
+    else:
+        # Try all keys
+        act_keys = [act_upper]
 
-    elif "BNS" in act_upper or "BHARATIYA" in act_upper or "NYAYA" in act_upper:
-        data = BNS_SECTIONS.get(section, {})
-        if data:
-            return {"act": "Bharatiya Nyaya Sanhita (BNS)", "section": section, **data}
+    for key in act_keys:
+        entry = _SECTION_INDEX.get((key, section))
+        if entry:
+            return {
+                "act": entry["act"],
+                "section": entry["section"],
+                "description": entry.get("title", entry.get("description", "")),
+                "offense_type": entry.get("crime_type", ""),
+                "cognizable": entry.get("cognizable"),
+                "bailable": entry.get("bailable"),
+                "punishment": entry.get("punishment", ""),
+            }
 
     return {"act": act, "section": section, "description": "Section details not found in local KB"}
 
@@ -84,12 +114,23 @@ def get_all_sections(act_filter: str = None) -> list:
     """Get all legal sections, optionally filtered by act."""
     results = []
 
-    if act_filter is None or "IPC" in act_filter.upper():
-        for section, data in IPC_SECTIONS.items():
-            results.append({"act": "Indian Penal Code (IPC)", "section": section, **data})
+    for entry in LEGAL_CORPUS:
+        act_upper = entry["act"].upper()
 
-    if act_filter is None or "BNS" in act_filter.upper():
-        for section, data in BNS_SECTIONS.items():
-            results.append({"act": "Bharatiya Nyaya Sanhita (BNS)", "section": section, **data})
+        # Apply filter if specified
+        if act_filter:
+            filter_upper = act_filter.upper()
+            if filter_upper not in act_upper:
+                continue
+
+        results.append({
+            "act": entry["act"],
+            "section": entry["section"],
+            "description": entry.get("title", ""),
+            "offense_type": entry.get("crime_type", ""),
+            "cognizable": entry.get("cognizable"),
+            "bailable": entry.get("bailable"),
+            "punishment": entry.get("punishment", ""),
+        })
 
     return results

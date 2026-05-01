@@ -305,6 +305,289 @@ LEGAL_CORPUS = [
         "investigation_steps": ["Record details of obscene behavior", "Collect witness statements", "Check for repeat offenses"],
         "example_scenario": "Accused uses abusive and obscene language during a dispute in public (തെറി വിളിച്ച്‌)."
     },
+
+    # ════════════════════════ ATTEMPT TO MURDER ════════════════════════
+    {
+        "section": "307", "act": "IPC",
+        "title": "Attempt to Murder",
+        "description": "Whoever does any act with the intention or knowledge that if he thereby caused death he would be guilty of murder, shall be punished with imprisonment of either description for a term which may extend to ten years, and shall also be liable to fine; and if hurt is caused to any person by such act, the offender shall be liable to imprisonment for life.",
+        "elements": ["Act done with intention to cause death", "Knowledge that act could cause death", "Act falls short of causing death"],
+        "punishment": "Up to 10 years imprisonment, and fine; life imprisonment if hurt is caused",
+        "cognizable": True, "bailable": False,
+        "crime_type": "assault", "severity": "critical",
+        "investigation_steps": ["Secure crime scene and collect weapon", "Medical examination of victim with detailed injury report", "Record dying declaration if victim critical", "Collect forensic evidence (blood, fingerprints)", "Record eyewitness statements", "Arrest accused immediately", "Collect CCTV footage", "Establish motive"],
+        "example_scenario": "Accused stabs victim multiple times with a knife during a dispute but victim survives after hospitalization."
+    },
+    {
+        "section": "109", "act": "BNS",
+        "title": "Attempt to Murder (BNS)",
+        "description": "Whoever does any act with the intention or knowledge that if he thereby caused death he would be guilty of murder, shall be punished. Replaces IPC Section 307.",
+        "elements": ["Intent to cause death", "Act done towards that end", "Death not resulting"],
+        "punishment": "Up to 10 years; life imprisonment if hurt caused",
+        "cognizable": True, "bailable": False,
+        "crime_type": "assault", "severity": "critical",
+        "investigation_steps": ["Secure scene and weapon", "Detailed medical report", "Record statements", "Forensic evidence collection", "Arrest accused"],
+        "example_scenario": "Accused attacks victim with iron rod on head with intent to kill."
+    },
+
+    # ════════════════════════ KIDNAPPING ════════════════════════
+    {
+        "section": "363", "act": "IPC",
+        "title": "Kidnapping from lawful guardianship",
+        "description": "Whoever kidnaps any person from lawful guardianship shall be punished with imprisonment of either description for a term which may extend to seven years, and shall also be liable to fine. Kidnapping from lawful guardianship means taking or enticing any minor under 16 (male) or 18 (female) out of the keeping of the lawful guardian.",
+        "elements": ["Taking or enticing a minor", "Out of keeping of lawful guardian", "Without guardian's consent"],
+        "punishment": "Up to 7 years imprisonment, and fine",
+        "cognizable": True, "bailable": False,
+        "crime_type": "kidnapping", "severity": "critical",
+        "investigation_steps": ["Register FIR immediately", "Alert all check posts and railway stations", "Circulate photo and description of missing person", "Check CCTV at last known location", "Trace mobile phone of victim and suspect", "Coordinate with cyber cell for digital tracking", "Record detailed statement of guardian", "Check social media accounts"],
+        "example_scenario": "Minor girl taken away by neighbor without parents' knowledge or consent."
+    },
+    {
+        "section": "364", "act": "IPC",
+        "title": "Kidnapping for murder or ransom",
+        "description": "Whoever kidnaps or abducts any person in order that such person may be murdered or so disposed of as to be put in danger of being murdered, shall be punished with imprisonment for life or rigorous imprisonment for a term which may extend to ten years, and shall also be liable to fine.",
+        "elements": ["Kidnapping or abduction", "Intent to murder or put in danger of murder", "Or for ransom"],
+        "punishment": "Life imprisonment or up to 10 years RI, and fine",
+        "cognizable": True, "bailable": False,
+        "crime_type": "kidnapping", "severity": "critical",
+        "investigation_steps": ["Immediate FIR and alert to all units", "Set up surveillance on communication channels", "Negotiate if ransom demanded", "Coordinate with anti-kidnapping squad", "Technical surveillance of suspects", "Rescue operation planning"],
+        "example_scenario": "Accused kidnaps businessman's son and demands ransom of Rs 50 lakhs."
+    },
+
+    # ════════════════════════ DOMESTIC VIOLENCE ════════════════════════
+    {
+        "section": "498A", "act": "IPC",
+        "title": "Cruelty by husband or relatives of husband",
+        "description": "Whoever, being the husband or the relative of the husband of a woman, subjects such woman to cruelty shall be punished with imprisonment for a term which may extend to three years and shall also be liable to fine. Cruelty means willful conduct likely to drive the woman to suicide, or causing grave injury to life, limb or health, or harassment for dowry.",
+        "elements": ["Accused is husband or his relative", "Victim is married woman", "Cruelty: physical or mental", "Dowry harassment or driving to suicide"],
+        "punishment": "Up to 3 years imprisonment, and fine",
+        "cognizable": True, "bailable": False,
+        "crime_type": "domestic_violence", "severity": "high",
+        "investigation_steps": ["Record victim's statement in private with female officer", "Document injuries with photographs and medical report", "Seize dowry demand evidence (messages, letters)", "Record statements of neighbors and relatives", "Check for previous complaints", "Provide victim with protection order information", "Refer to Women's Commission if needed"],
+        "example_scenario": "Husband and in-laws harass wife for additional dowry and physically assault her."
+    },
+    {
+        "section": "85", "act": "BNS",
+        "title": "Cruelty by husband or relatives (BNS)",
+        "description": "Whoever, being the husband or the relative of the husband of a woman, subjects such woman to cruelty shall be punished. Replaces IPC 498A.",
+        "elements": ["Husband or relative", "Cruelty to married woman", "Dowry demand or mental/physical abuse"],
+        "punishment": "Up to 3 years imprisonment, and fine",
+        "cognizable": True, "bailable": False,
+        "crime_type": "domestic_violence", "severity": "high",
+        "investigation_steps": ["Record victim statement with female officer", "Medical examination", "Collect evidence of dowry demand", "Provide protection order", "Arrest accused if prima facie case"],
+        "example_scenario": "Wife subjected to mental and physical cruelty for not meeting dowry demands."
+    },
+
+    # ════════════════════════ CYBER CRIME ════════════════════════
+    {
+        "section": "66", "act": "IT Act",
+        "title": "Computer related offences (Hacking)",
+        "description": "If any person, dishonestly or fraudulently, does any act referred to in section 43 (unauthorized access, data theft, virus introduction, denial of service), he shall be punishable with imprisonment for a term which may extend to three years or with fine which may extend to five lakh rupees or with both.",
+        "elements": ["Unauthorized access to computer system", "Dishonest or fraudulent intent", "Damage to computer/data/network"],
+        "punishment": "Up to 3 years imprisonment, or fine up to Rs 5 lakh, or both",
+        "cognizable": True, "bailable": True,
+        "crime_type": "cyber_crime", "severity": "medium",
+        "investigation_steps": ["Preserve digital evidence immediately", "Seize devices with proper chain of custody", "Send to cyber forensics lab", "Trace IP addresses and digital footprint", "Coordinate with ISP for subscriber details", "Record technical evidence with hash values", "Check for similar complaints (pattern)"],
+        "example_scenario": "Accused hacks into victim's email account and steals personal data."
+    },
+    {
+        "section": "66C", "act": "IT Act",
+        "title": "Identity theft using computer resource",
+        "description": "Whoever, fraudulently or dishonestly makes use of the electronic signature, password or any other unique identification feature of any other person, shall be punished with imprisonment of either description for a term which may extend to three years and shall also be liable to fine which may extend to rupees one lakh.",
+        "elements": ["Fraudulent use of another's identity", "Electronic signature/password/ID", "Dishonest intent"],
+        "punishment": "Up to 3 years imprisonment, and fine up to Rs 1 lakh",
+        "cognizable": True, "bailable": True,
+        "crime_type": "cyber_crime", "severity": "medium",
+        "investigation_steps": ["Document the identity theft with screenshots", "Trace the unauthorized access logs", "Coordinate with platform/service provider", "Preserve digital evidence", "Check financial transactions if any"],
+        "example_scenario": "Accused uses victim's Aadhaar and PAN details to open fake bank accounts."
+    },
+    {
+        "section": "66D", "act": "IT Act",
+        "title": "Cheating by personation using computer resource",
+        "description": "Whoever, by means of any communication device or computer resource cheats by personating, shall be punished with imprisonment of either description for a term which may extend to three years and shall also be liable to fine which may extend to one lakh rupees.",
+        "elements": ["Cheating by impersonation", "Using communication device or computer", "Fraudulent intent"],
+        "punishment": "Up to 3 years imprisonment, and fine up to Rs 1 lakh",
+        "cognizable": True, "bailable": True,
+        "crime_type": "cyber_crime", "severity": "medium",
+        "investigation_steps": ["Collect evidence of impersonation", "Trace digital communications", "Coordinate with cyber cell", "Identify actual person behind fake accounts", "Preserve all electronic evidence"],
+        "example_scenario": "Accused creates fake social media profile of victim and sends obscene messages to victim's contacts."
+    },
+
+    # ════════════════════════ DRUG OFFENSES (NDPS) ════════════════════════
+    {
+        "section": "20", "act": "NDPS Act",
+        "title": "Punishment for contravention in relation to cannabis plant and cannabis",
+        "description": "Whoever contravenes any provision of this Act relating to cannabis plant or cannabis (ganja, charas, hashish) — for small quantity: rigorous imprisonment up to 1 year, or fine up to Rs 10,000, or both; for quantity less than commercial but more than small: up to 10 years RI and fine up to Rs 1 lakh; for commercial quantity: 10-20 years RI and fine Rs 1-2 lakh.",
+        "elements": ["Possession or dealing in cannabis", "Without authorization", "Quantity determines severity"],
+        "punishment": "Small: up to 1 year; Medium: up to 10 years; Commercial: 10-20 years",
+        "cognizable": True, "bailable": False,
+        "crime_type": "drug_offense", "severity": "high",
+        "investigation_steps": ["Seize substance with proper panchnama", "Weigh and photograph seized substance", "Draw samples for chemical analysis (FSL)", "Record seizure witnesses", "Arrest accused and record memorandum", "Check for supplier chain", "Send samples to forensic lab within 72 hours"],
+        "example_scenario": "Accused found in possession of 500 grams of ganja during vehicle check."
+    },
+    {
+        "section": "21", "act": "NDPS Act",
+        "title": "Punishment for contravention in relation to manufactured drugs",
+        "description": "Whoever contravenes any provision of this Act relating to manufactured drugs (heroin, cocaine, morphine, etc.) shall be punishable. Small quantity: up to 1 year RI or fine up to Rs 10,000 or both. Commercial quantity: 10-20 years RI and fine Rs 1-2 lakh.",
+        "elements": ["Possession/sale of manufactured drugs", "Without authorization", "Type and quantity of substance"],
+        "punishment": "Small: up to 1 year; Commercial: 10-20 years RI",
+        "cognizable": True, "bailable": False,
+        "crime_type": "drug_offense", "severity": "critical",
+        "investigation_steps": ["Seize drugs with detailed panchnama", "Chemical testing of substance", "Trace supply chain and network", "Financial investigation of accused", "Coordinate with Narcotics Control Bureau", "Check international connections"],
+        "example_scenario": "Accused caught selling heroin near school premises."
+    },
+
+    # ════════════════════════ DACOITY ════════════════════════
+    {
+        "section": "395", "act": "IPC",
+        "title": "Punishment for Dacoity",
+        "description": "Whoever commits dacoity shall be punished with imprisonment for life, or with rigorous imprisonment for a term which may extend to ten years, and shall also be liable to fine. Dacoity means robbery committed by five or more persons conjointly.",
+        "elements": ["Five or more persons acting together", "Commission of robbery", "Use or threat of force"],
+        "punishment": "Life imprisonment or up to 10 years RI, and fine",
+        "cognizable": True, "bailable": False,
+        "crime_type": "dacoity", "severity": "critical",
+        "investigation_steps": ["Secure crime scene", "Record victim and witness statements", "Identify all members of gang", "Check for similar dacoity patterns", "Seize weapons used", "Alert neighboring police stations", "Use technical surveillance to track gang"],
+        "example_scenario": "Group of 6 armed men break into a house at night and rob gold and cash worth Rs 15 lakhs."
+    },
+
+    # ════════════════════════ EXTORTION ════════════════════════
+    {
+        "section": "384", "act": "IPC",
+        "title": "Punishment for Extortion",
+        "description": "Whoever commits extortion shall be punished with imprisonment of either description for a term which may extend to three years, or with fine, or with both. Extortion means intentionally putting any person in fear of any injury and thereby dishonestly inducing the person to deliver property.",
+        "elements": ["Putting person in fear of injury", "Dishonest inducement", "Delivery of property or valuable security"],
+        "punishment": "Up to 3 years imprisonment, or fine, or both",
+        "cognizable": True, "bailable": False,
+        "crime_type": "extortion", "severity": "high",
+        "investigation_steps": ["Record detailed victim statement", "Preserve threatening messages/calls", "Set up trap if extortion ongoing", "Trace phone numbers and accounts", "Arrest accused with evidence", "Check for other victims"],
+        "example_scenario": "Accused threatens shopkeeper to pay monthly hafta or face damage to shop."
+    },
+    {
+        "section": "308", "act": "BNS",
+        "title": "Extortion (BNS)",
+        "description": "Whoever commits extortion shall be punished. Replaces IPC Section 384.",
+        "elements": ["Fear of injury", "Dishonest inducement", "Delivery of property"],
+        "punishment": "Up to 3 years imprisonment, or fine, or both",
+        "cognizable": True, "bailable": False,
+        "crime_type": "extortion", "severity": "high",
+        "investigation_steps": ["Record victim statement", "Preserve evidence of threats", "Technical surveillance", "Trap and arrest", "Identify accomplices"],
+        "example_scenario": "Gang demands protection money from construction site workers."
+    },
+
+    # ════════════════════════ DEATH BY NEGLIGENCE ════════════════════════
+    {
+        "section": "304A", "act": "IPC",
+        "title": "Causing death by negligence",
+        "description": "Whoever causes the death of any person by doing any rash or negligent act not amounting to culpable homicide, shall be punished with imprisonment of either description for a term which may extend to two years, or with fine, or with both.",
+        "elements": ["Death of a person", "Caused by rash or negligent act", "Not amounting to culpable homicide"],
+        "punishment": "Up to 2 years imprisonment, or fine, or both",
+        "cognizable": True, "bailable": True,
+        "crime_type": "death_by_negligence", "severity": "critical",
+        "investigation_steps": ["Secure accident scene", "Conduct inquest proceedings", "Send body for post-mortem", "Record statements of witnesses", "Prepare spot mahazar with measurements", "Check vehicle fitness and driver license", "Collect CCTV footage", "Medical examination of driver for alcohol"],
+        "example_scenario": "Truck driver runs over pedestrian due to rash driving on NH road."
+    },
+
+    # ════════════════════════ ROBBERY (IPC) ════════════════════════
+    {
+        "section": "392", "act": "IPC",
+        "title": "Punishment for Robbery",
+        "description": "Whoever commits robbery shall be punished with rigorous imprisonment for a term which may extend to ten years, and shall also be liable to fine; and if the robbery be committed on the highway between sunset and sunrise, the imprisonment may be extended to fourteen years.",
+        "elements": ["Theft or extortion", "Use or threat of force", "At the time of or immediately before/after"],
+        "punishment": "Up to 10 years RI and fine; up to 14 years if on highway at night",
+        "cognizable": True, "bailable": False,
+        "crime_type": "robbery", "severity": "high",
+        "investigation_steps": ["Record victim statement immediately", "Collect description of robbers", "Check CCTV in area", "Alert patrol vehicles", "Trace stolen property", "Check with informers", "Fingerprint collection at scene"],
+        "example_scenario": "Two persons snatch gold chain from woman on road by using force."
+    },
+
+    # ════════════════════════ SC/ST ATROCITY ════════════════════════
+    {
+        "section": "3", "act": "SC/ST (PoA) Act",
+        "title": "Offences of atrocities against SC/ST",
+        "description": "Whoever, not being a member of a Scheduled Caste or Scheduled Tribe, commits specified offences against members of SC/ST communities including assault, forced labor, land dispossession, sexual exploitation, false litigation, public humiliation, using casteist slurs, shall be punished with imprisonment not less than six months which may extend to five years and with fine.",
+        "elements": ["Accused is non-SC/ST", "Victim is SC/ST member", "Specified offence committed", "Caste-based motivation"],
+        "punishment": "6 months to 5 years imprisonment, and fine",
+        "cognizable": True, "bailable": False,
+        "crime_type": "atrocity", "severity": "high",
+        "investigation_steps": ["Register FIR under SC/ST Act mandatorily", "Investigation by DSP rank officer", "Record victim statement", "Verify caste certificates of both parties", "Collect witnesses", "No compromise or mediation permitted", "Ensure victim protection", "Provide legal aid to victim"],
+        "example_scenario": "Upper caste person publicly humiliates Dalit man using casteist slurs and prevents him from accessing public water source."
+    },
+
+    # ════════════════════════ POCSO ════════════════════════
+    {
+        "section": "4", "act": "POCSO Act",
+        "title": "Punishment for penetrative sexual assault on child",
+        "description": "Whoever commits penetrative sexual assault on a child shall be punished with imprisonment of either description for a term which shall not be less than seven years but which may extend to imprisonment for life, and shall also be liable to fine. If victim is below 12 years, minimum 20 years RI extending to life imprisonment.",
+        "elements": ["Penetrative sexual assault", "Victim is a child (below 18)", "Age of victim determines severity"],
+        "punishment": "Minimum 7 years to life imprisonment, and fine",
+        "cognizable": True, "bailable": False,
+        "crime_type": "sexual_offense", "severity": "critical",
+        "investigation_steps": ["Register FIR immediately — no preliminary enquiry", "Record statement by female officer in child-friendly environment", "Medical examination within 24 hours", "Do NOT subject child to repeated questioning", "Arrange for child counselor", "Statement before magistrate under BNSS 183", "Send for forensic evidence collection", "Ensure identity protection of child"],
+        "example_scenario": "School teacher commits sexual assault on 10-year-old student."
+    },
+    {
+        "section": "6", "act": "POCSO Act",
+        "title": "Aggravated penetrative sexual assault on child",
+        "description": "Penetrative sexual assault committed by police officer, armed forces, public servant, management of institution, or gang assault, or repeated assault, or assault causing physical/mental incapacity, or assault on child below 12 years. Minimum punishment enhanced.",
+        "elements": ["Penetrative sexual assault", "Aggravating factors present", "Abuse of position of trust"],
+        "punishment": "Minimum 10 years to life imprisonment, and fine (below 12: min 20 years)",
+        "cognizable": True, "bailable": False,
+        "crime_type": "sexual_offense", "severity": "critical",
+        "investigation_steps": ["Immediate FIR and arrest", "CWC notification within 24 hours", "Medical examination with detailed documentation", "Statement before magistrate", "Special court fast-track", "Victim compensation application", "No media disclosure of identity"],
+        "example_scenario": "Warden of children's home sexually assaults minor residents repeatedly."
+    },
+
+    # ════════════════════════ ROAD ACCIDENT ════════════════════════
+    {
+        "section": "279", "act": "IPC",
+        "title": "Rash driving or riding on a public way",
+        "description": "Whoever drives any vehicle, or rides, on any public way in a manner so rash or negligent as to endanger human life, or to be likely to cause hurt or injury to any other person, shall be punished with imprisonment of either description for a term which may extend to six months, or with fine which may extend to one thousand rupees, or with both.",
+        "elements": ["Driving/riding on public way", "Rash or negligent manner", "Endangering human life or likely to cause injury"],
+        "punishment": "Up to 6 months imprisonment, or fine up to Rs 1000, or both",
+        "cognizable": True, "bailable": True,
+        "crime_type": "rash_driving", "severity": "high",
+        "investigation_steps": ["Prepare accident spot mahazar", "Photograph scene with measurements", "Record statements of witnesses", "Seize vehicle and documents", "Medical examination of driver", "Check vehicle fitness certificate", "Obtain accident report from motor vehicle inspector"],
+        "example_scenario": "Accused drives car at excessive speed on busy road and nearly hits pedestrians."
+    },
+
+    # ════════════════════════ ARMS OFFENSE ════════════════════════
+    {
+        "section": "25", "act": "Arms Act",
+        "title": "Punishment for certain offences — possession of illegal arms",
+        "description": "Whoever acquires, has in his possession or carries any firearms or ammunition in contravention of section 3 (without license) shall be punishable with imprisonment for a term which shall not be less than one year but which may extend to three years and shall also be liable to fine.",
+        "elements": ["Possession of firearm or ammunition", "Without valid license", "Contravention of Arms Act"],
+        "punishment": "1 to 3 years imprisonment, and fine; up to 7 years for prohibited arms",
+        "cognizable": True, "bailable": False,
+        "crime_type": "arms_offense", "severity": "high",
+        "investigation_steps": ["Seize weapon with detailed panchnama", "Check for arms license", "Send weapon for ballistic examination", "Record seizure witnesses", "Check weapon's history in NCRB database", "Verify source of procurement", "Check for connected cases"],
+        "example_scenario": "Accused found carrying country-made pistol without license during routine vehicle check."
+    },
+
+    # ════════════════════════ MISSING PERSON ════════════════════════
+    {
+        "section": "174", "act": "CrPC",
+        "title": "Police enquiry in case of suicide etc — Missing Person",
+        "description": "When a person goes missing, the police shall register a complaint immediately. If person missing is a woman or child below 14 years, an FIR shall be registered immediately. For others, if the person is not traced within 24 hours, an FIR may be registered. Special provisions exist under BNSS 194 for unnatural death inquiry.",
+        "elements": ["Person reported missing", "Complaint by family/friend", "Circumstances of disappearance"],
+        "punishment": "N/A — procedural section",
+        "cognizable": True, "bailable": None,
+        "crime_type": "missing_person", "severity": "high",
+        "investigation_steps": ["Register complaint immediately (FIR if woman/child)", "Circulate photo and description", "Check last known location and CCTV", "Trace mobile phone", "Check hospitals and mortuaries", "Inform neighboring police stations", "Publish in media if needed", "Check social media for clues"],
+        "example_scenario": "Parents report 16-year-old daughter missing after she did not return from school."
+    },
+
+    # ════════════════════════ BREACH OF TRUST ════════════════════════
+    {
+        "section": "406", "act": "IPC",
+        "title": "Criminal breach of trust",
+        "description": "Whoever commits criminal breach of trust shall be punished with imprisonment of either description for a term which may extend to three years, or with fine, or with both. Criminal breach of trust is dishonest misappropriation or conversion of property entrusted to a person.",
+        "elements": ["Property entrusted to accused", "Dishonest misappropriation", "Violation of trust"],
+        "punishment": "Up to 3 years imprisonment, or fine, or both",
+        "cognizable": False, "bailable": True,
+        "crime_type": "breach_of_trust", "severity": "medium",
+        "investigation_steps": ["Collect documentary evidence of entrustment", "Trace misappropriated property/funds", "Record victim statement with documents", "Check financial records", "Verify if civil remedy already pursued"],
+        "example_scenario": "Business partner misappropriates Rs 10 lakhs from joint business account for personal use."
+    },
 ]
 
 

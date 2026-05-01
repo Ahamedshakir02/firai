@@ -50,6 +50,11 @@ async def detect_mo_patterns(
     # Detect patterns
     patterns = await mo_detector.detect_patterns_from_narratives(narratives)
 
+    # Clear existing patterns before saving new ones (prevents duplicates)
+    from sqlalchemy import delete
+    await db.execute(delete(MOPattern))
+    await db.flush()
+
     # Save detected patterns to DB
     saved_patterns = []
     for p in patterns:

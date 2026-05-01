@@ -232,23 +232,59 @@ async def analyze_narrative(narrative: str) -> dict:
 async def legal_query(question: str, context_narrative: str = "") -> dict:
     """
     Answer legal questions using the built-in legal corpus.
-    Phase 2 will add a custom transformer for more nuanced answers.
+    Supports:
+      - Direct section lookup: "IPC 302", "BNS 103", "section 324"
+      - Bail queries: "Is 420 bailable?", "bail for IPC 324"
+      - Crime type queries: "theft", "kidnapping", "cyber crime"
+      - Investigation queries: "steps for murder investigation"
+      - General keyword search as fallback
     """
     question_lower = question.lower()
 
-    # Search legal corpus for relevant sections
+    # ── Fast-path: direct section number lookup ──
+    section_match = _extract_section_from_query(question)
+    if section_match:
+        act_hint, section_num = section_match
+        direct_results = _find_section_in_corpus(act_hint, section_num)
+        if direct_results:
+            return _format_section_response(direct_results, question_lower)
+
+    # ── Crime type matching ──
+    crime_type_match = _detect_crime_type(question_lower)
+    if crime_type_match:
+        sections = get_sections_by_crime(crime_type_match)
+        if sections:
+            return _format_crime_type_response(sections, crime_type_match, question_lower)
+
+    # ── Keyword search fallback (improved scoring) ──
     relevant = []
+    # Filter out very short/common words
+    query_words = [w for w in question_lower.split() if len(w) > 2 and w not in {
+        "what", "the", "for", "and", "how", "who", "can", "are", "was", "has",
+        "does", "this", "that", "with", "from", "about", "which", "where",
+        "section", "act", "under", "punishment", "bailable", "bail",
+    }]
+
     for section in LEGAL_CORPUS:
         score = 0
-        # Check title match
-        if any(word in section["title"].lower() for word in question_lower.split()):
-            score += 2
-        # Check description match
-        if any(word in section["description"].lower() for word in question_lower.split() if len(word) > 3):
-            score += 1
-        # Check crime type match
-        if section["crime_type"] in question_lower:
-            score += 3
+        title_lower = section["title"].lower()
+        desc_lower = section["description"].lower()
+
+        # Title word match (high weight)
+        for word in query_words:
+            if word in title_lower:
+                score += 3
+            if word in desc_lower:
+                score += 1
+        # Crime type match
+        if section["crime_type"].replace("_", " ") in question_lower:
+            score += 4
+        # Elements match
+        for element in section.get("elements", []):
+            if any(w in element.lower() for w in query_words):
+                score += 2
+                break
+
         if score > 0:
             relevant.append((score, section))
 
@@ -257,24 +293,187 @@ async def legal_query(question: str, context_narrative: str = "") -> dict:
 
     if not top_sections:
         return {
-            "answer": "No relevant legal sections found for your query. Please try rephrasing with specific legal terms or crime types.",
+            "answer": "No relevant legal sections found for your query. Try asking with:\n"
+                      "• A specific section number (e.g., \"IPC 302\", \"BNS 115\")\n"
+                      "• A crime type (e.g., \"theft\", \"kidnapping\", \"cyber crime\")\n"
+                      "• A legal question (e.g., \"Is 420 bailable?\", \"punishment for robbery\")",
             "relevant_sections": [],
         }
 
-    # Build answer from corpus
+    return _format_section_response(top_sections, question_lower)
+
+
+def _extract_section_from_query(question: str) -> tuple:
+    """
+    Extract (act_hint, section_number) from a query.
+    Handles: "IPC 302", "BNS 115(2)", "section 324", "420", "NDPS 20"
+    """
+    q = question.strip()
+
+    # Pattern: "IPC 302", "BNS 115(2)", "NDPS Act 20", "IT Act 66C"
+    import re
+    act_section = re.search(
+        r'\b(IPC|BNS|BNSS|NDPS|POCSO|IT\s*Act|Arms\s*Act|Abkari|MV\s*Act|Motor\s*Vehicle|SC/ST|CrPC)'
+        r'\s*(?:Act\s*)?(?:Section\s*)?(\d+[A-Za-z]?(?:\([^)]*\))?)',
+        q, re.IGNORECASE
+    )
+    if act_section:
+        return act_section.group(1).strip(), act_section.group(2).strip()
+
+    # Pattern: "section 302", "sec 420", "§302"
+    sec_match = re.search(r'(?:section|sec\.?|§)\s*(\d+[A-Za-z]?(?:\([^)]*\))?)', q, re.IGNORECASE)
+    if sec_match:
+        return None, sec_match.group(1).strip()
+
+    # Pattern: bare number like "302" or "420" if query is short
+    if len(q.split()) <= 4:
+        bare_num = re.search(r'\b(\d{2,3}[A-Za-z]?(?:\([^)]*\))?)\b', q)
+        if bare_num:
+            num = bare_num.group(1)
+            # Avoid matching years like 2025
+            if not re.match(r'^(19|20)\d{2}$', num):
+                return None, num
+
+    return None
+
+
+def _find_section_in_corpus(act_hint: str, section_num: str) -> list:
+    """Find matching sections in LEGAL_CORPUS."""
+    results = []
+
+    for entry in LEGAL_CORPUS:
+        if entry["section"] != section_num:
+            continue
+
+        if act_hint:
+            act_upper = act_hint.upper().replace(" ", "")
+            entry_act_upper = entry["act"].upper().replace(" ", "")
+            # Check if act hint matches
+            if act_upper not in entry_act_upper and entry_act_upper not in act_upper:
+                # Also check common abbreviations
+                if not (act_upper in ("IT", "ITACT") and "IT" in entry_act_upper):
+                    continue
+
+        results.append(entry)
+
+    # If no act hint, return all matches for that section number
+    if not results and not act_hint:
+        for entry in LEGAL_CORPUS:
+            if entry["section"] == section_num:
+                results.append(entry)
+
+    return results
+
+
+def _detect_crime_type(question_lower: str) -> str:
+    """Detect if the question is about a specific crime type."""
+    CRIME_KEYWORDS = {
+        "murder": ["murder", "killing", "homicide"],
+        "assault": ["assault", "hurt", "beating", "attack", "grievous"],
+        "theft": ["theft", "stealing", "stolen", "pickpocket"],
+        "robbery": ["robbery", "robbing", "snatch", "snatching"],
+        "cheating": ["cheating", "fraud", "scam", "swindle"],
+        "kidnapping": ["kidnapping", "abduction", "kidnap", "abduct", "missing child"],
+        "sexual_offense": ["sexual", "rape", "molestation", "modesty", "pocso"],
+        "domestic_violence": ["domestic violence", "dowry", "cruelty by husband", "498a"],
+        "cyber_crime": ["cyber", "hacking", "online fraud", "identity theft", "phishing"],
+        "drug_offense": ["drug", "ndps", "ganja", "heroin", "narcotics", "cannabis"],
+        "drunk_driving": ["drunk driving", "drunken driving", "alcohol driving"],
+        "rash_driving": ["rash driving", "negligent driving", "road accident", "hit and run"],
+        "extortion": ["extortion", "hafta", "threatening for money"],
+        "dacoity": ["dacoity", "gang robbery"],
+        "forgery": ["forgery", "fake document", "forged"],
+        "trespass": ["trespass", "illegal entry"],
+        "criminal_intimidation": ["intimidation", "threatening", "death threat"],
+        "excise_offense": ["excise", "abkari", "liquor", "illicit alcohol"],
+        "property_damage": ["property damage", "mischief", "vandalism"],
+        "unnatural_death": ["unnatural death", "suspicious death", "drowning"],
+        "death_by_negligence": ["death by negligence", "negligent death", "304a"],
+        "atrocity": ["sc/st", "caste", "atrocity", "dalit"],
+        "arms_offense": ["illegal arms", "unlicensed gun", "firearm", "arms act"],
+        "missing_person": ["missing person", "missing child", "person missing"],
+        "breach_of_trust": ["breach of trust", "misappropriation", "embezzlement"],
+    }
+
+    for crime_type, keywords in CRIME_KEYWORDS.items():
+        if any(kw in question_lower for kw in keywords):
+            return crime_type
+    return None
+
+
+def _format_section_response(sections: list, question_lower: str) -> dict:
+    """Format a response from matched sections."""
+    is_bail_query = any(w in question_lower for w in ["bail", "bailable"])
+    is_steps_query = any(w in question_lower for w in ["investigation", "steps", "procedure", "how to investigate"])
+
     answer_parts = []
     sections_list = []
-    for s in top_sections:
-        answer_parts.append(f"**{s['act']} Section {s['section']} — {s['title']}**: {s['description']}")
-        answer_parts.append(f"Punishment: {s['punishment']}")
+
+    for s in sections:
+        # Section header
+        answer_parts.append(f"**{s['act']} Section {s['section']} — {s['title']}**")
+        answer_parts.append(f"{s['description']}")
+        answer_parts.append(f"")
+        answer_parts.append(f"**Punishment:** {s['punishment']}")
+
+        # Bail info (always include, highlight if bail query)
+        bail_status = "Yes ✅" if s.get("bailable") else ("No ❌" if s.get("bailable") is False else "N/A")
+        cognizable = "Yes" if s.get("cognizable") else ("No" if s.get("cognizable") is False else "N/A")
+        answer_parts.append(f"**Bailable:** {bail_status}  |  **Cognizable:** {cognizable}")
+
         if s.get("elements"):
-            answer_parts.append(f"Elements: {', '.join(s['elements'])}")
+            answer_parts.append(f"**Elements of offence:** {', '.join(s['elements'])}")
+
+        # Investigation steps (always include if available)
+        if s.get("investigation_steps"):
+            if is_steps_query:
+                answer_parts.append(f"\n**Investigation Steps:**")
+                for i, step in enumerate(s["investigation_steps"], 1):
+                    answer_parts.append(f"  {i}. {step}")
+            else:
+                answer_parts.append(f"**Key investigation steps:** {'; '.join(s['investigation_steps'][:4])}")
+
         answer_parts.append("")
+        answer_parts.append("---")
+        answer_parts.append("")
+
         sections_list.append({
             "section": s["section"],
             "act": s["act"],
             "description": s["title"],
         })
+
+    return {
+        "answer": "\n".join(answer_parts),
+        "relevant_sections": sections_list,
+    }
+
+
+def _format_crime_type_response(sections: list, crime_type: str, question_lower: str) -> dict:
+    """Format a response for a crime type query."""
+    crime_label = crime_type.replace("_", " ").title()
+    answer_parts = [f"**Legal sections related to {crime_label}:**\n"]
+
+    sections_list = []
+    for s in sections:
+        answer_parts.append(f"**{s['act']} Section {s['section']} — {s['title']}**")
+        answer_parts.append(f"Punishment: {s['punishment']}")
+        bail = "Yes ✅" if s.get("bailable") else ("No ❌" if s.get("bailable") is False else "N/A")
+        answer_parts.append(f"Bailable: {bail}")
+        answer_parts.append("")
+
+        sections_list.append({
+            "section": s["section"],
+            "act": s["act"],
+            "description": s["title"],
+        })
+
+    # Add investigation steps for this crime type
+    steps = get_investigation_steps(crime_type)
+    if steps:
+        answer_parts.append("**Recommended Investigation Steps:**")
+        for i, step in enumerate(steps[:8], 1):
+            answer_parts.append(f"  {i}. {step}")
 
     return {
         "answer": "\n".join(answer_parts),
