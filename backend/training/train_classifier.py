@@ -100,11 +100,21 @@ def augment_drop_words(narrative: str, drop_rate: float = 0.15) -> str:
 def augment_dataset(labeled_data: list, target_per_class: int = 30) -> list:
     """
     Augment dataset so each crime type has at least `target_per_class` examples.
-    Uses word shuffling, word dropping, and legal corpus examples.
+    Uses word shuffling, word dropping, legal corpus, AND parsed law PDFs.
     """
     # Add legal corpus examples
     augmented = list(labeled_data)
     augmented.extend(augment_from_legal_corpus())
+
+    # Add parsed law PDF training data (if available)
+    law_data_path = os.path.join(
+        BACKEND_DIR, "ai_engine", "data", "datasets", "law_training_data.json"
+    )
+    if os.path.exists(law_data_path):
+        with open(law_data_path, "r", encoding="utf-8") as f:
+            law_data = json.load(f)
+        augmented.extend(law_data)
+        print(f"  Added {len(law_data)} examples from parsed law PDFs")
 
     # Count per class
     counts = Counter(d["crime_type"] for d in augmented)
