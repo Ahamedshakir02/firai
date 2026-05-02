@@ -118,6 +118,12 @@ export const legalAPI = {
     client.get('/legal/sections', { params: act ? { act } : {} }),
   lookupSection: (act, section) =>
     client.get(`/legal/sections/${act}/${section}`),
+  getEquivalent: (act, section) =>
+    client.get(`/legal/equivalent/${act}/${section}`),
+  getBatchEquivalents: (sections) =>
+    client.post('/legal/equivalent/batch', sections),
+  calcPunishment: (sections) =>
+    client.post('/legal/punishment-calc', { sections }),
 };
 
 // ──────────────────────── MO Patterns ────────────────────────
