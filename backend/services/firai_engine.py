@@ -256,9 +256,15 @@ async def legal_query(question: str, context_narrative: str = "") -> dict:
         if sections:
             return _format_crime_type_response(sections, crime_type_match, question_lower)
 
-    # ── Keyword search fallback (improved scoring) ──
+    # ── RAG semantic search (primary fallback) ──
+    from services import legal_rag
+    if legal_rag.is_ready():
+        rag_results = legal_rag.search(question, top_k=5)
+        if rag_results:
+            return _format_section_response(rag_results, question_lower)
+
+    # ── Keyword search fallback (if RAG not available) ──
     relevant = []
-    # Filter out very short/common words
     query_words = [w for w in question_lower.split() if len(w) > 2 and w not in {
         "what", "the", "for", "and", "how", "who", "can", "are", "was", "has",
         "does", "this", "that", "with", "from", "about", "which", "where",
@@ -270,16 +276,13 @@ async def legal_query(question: str, context_narrative: str = "") -> dict:
         title_lower = section["title"].lower()
         desc_lower = section["description"].lower()
 
-        # Title word match (high weight)
         for word in query_words:
             if word in title_lower:
                 score += 3
             if word in desc_lower:
                 score += 1
-        # Crime type match
         if section["crime_type"].replace("_", " ") in question_lower:
             score += 4
-        # Elements match
         for element in section.get("elements", []):
             if any(w in element.lower() for w in query_words):
                 score += 2
