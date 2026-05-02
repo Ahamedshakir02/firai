@@ -76,12 +76,15 @@ def warmup():
     # Load embedding model (reuse from embedding_engine if available)
     try:
         from services.embedding_engine import embedding_engine
-        _model = embedding_engine.model
-        print(f"[LegalRAG] Reusing embedding model from EmbeddingEngine")
+        if embedding_engine.model is not None:
+            _model = embedding_engine.model
+            print("[LegalRAG] Reusing embedding model from EmbeddingEngine")
+        else:
+            raise ValueError("EmbeddingEngine model not loaded yet")
     except Exception:
         from sentence_transformers import SentenceTransformer
         _model = SentenceTransformer("all-MiniLM-L6-v2")
-        print(f"[LegalRAG] Loaded fresh embedding model")
+        print("[LegalRAG] Loaded fresh embedding model")
 
     # Encode all sections
     texts = []
