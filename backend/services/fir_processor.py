@@ -42,8 +42,10 @@ def extract_text_from_pdf(pdf_path: str) -> str:
 
 def clean_text(text: str) -> str:
     """Clean OCR-extracted text: remove noise, normalize whitespace."""
-    # Remove extra whitespace
-    text = re.sub(r'\s+', ' ', text)
+    # Normalize spaces/tabs but KEEP newlines
+    text = re.sub(r'[ \t]+', ' ', text)
+    # Collapse 3+ newlines into 2
+    text = re.sub(r'\n{3,}', '\n\n', text)
     # Remove page numbers
     text = re.sub(r'Page\s*\d+', '', text, flags=re.IGNORECASE)
     return text.strip()
@@ -149,21 +151,23 @@ def extract_acts(text: str) -> list:
                     break
 
                 match = re.match(
-                    r'([A-Za-z\s\.\(\)0-9]+?)\s+([0-9,\(\)a-zA-Z\s]+)',
+                    r'(.*?)\s+([0-9,\(\)a-zA-Z\s]+)$',
                     row
                 )
                 if match:
                     act_name = match.group(1).strip()
                     section_part = match.group(2)
-                    raw_sections = re.findall(r'\b\d+(?:\([a-zA-Z]+\))?', section_part)
+                    raw_sections = re.findall(r'\b\d+(?:\([a-zA-Z0-9]+\))?', section_part)
 
                     sections = []
                     for s in raw_sections:
-                        num = int(re.match(r'\d+', s).group())
-                        if num < 1000:
-                            sections.append(s)
+                        num_match = re.match(r'\d+', s)
+                        if num_match:
+                            num = int(num_match.group())
+                            if num < 1000:
+                                sections.append(s)
 
-                    if sections:
+                    if sections and any(c.isalpha() for c in act_name):
                         acts.append({"act": act_name, "sections": list(dict.fromkeys(sections))})
                 j += 1
             break
@@ -171,14 +175,17 @@ def extract_acts(text: str) -> list:
     # Fallback: inline extraction
     if not acts:
         inline_patterns = re.findall(
-            r'\b(IPC\s*1860|THE\s+BHARATIYA\s+NYAYA\s+SANHITA\s*\(BNS\)|BNS|Motor Vehicle Act\s*\d{4})\s+([0-9,\(\)a-zA-Z\s]+)',
+            r'\b(IPC|BNS|BHARATIYA NYAYA SANHITA|Motor Vehicle Act|IT Act|INFORMATION TECHNOLOGY ACT|Abkari Act|NDPS|POCSO|JJ Act).*?([0-9,\(\)a-zA-Z\s]+)',
             text,
-            re.IGNORECASE
+            re.IGNORECASE | re.DOTALL
         )
         for act_name, section_part in inline_patterns:
+            # Only look at the next 50 chars for sections to avoid runaway matches
+            section_part = section_part[:50]
             sections = []
-            for s in re.findall(r'\b\d+(?:\([a-zA-Z]+\))?', section_part):
-                if int(re.match(r'\d+', s).group()) < 1000:
+            for s in re.findall(r'\b\d+(?:\([a-zA-Z0-9]+\))?', section_part):
+                num_match = re.match(r'\d+', s)
+                if num_match and int(num_match.group()) < 1000:
                     sections.append(s)
             if sections:
                 acts.append({"act": act_name.strip(), "sections": list(dict.fromkeys(sections))})
@@ -236,12 +243,17 @@ def extract_accused(text: str) -> list:
     )
     accused_text = section_match.group(1) if section_match else ""
 
-    pattern = re.compile(r'([A-Z][A-Z\s\.]{2,50})\s+Age[-\s]*([0-9]{1,3})', re.IGNORECASE)
+    pattern = re.compile(r'([A-Z][A-Z\s\.\-]{2,50})\s*(?:,|Age|Vayas|വയസ്സ്)[-\s]*([0-9]{1,3})', re.IGNORECASE)
     seen = set()
+
+    # Sometimes accused is just listed without age in OCR
+    fallback_pattern = re.compile(r'Name\s*:\s*([A-Z][A-Z\s\.]{2,50})', re.IGNORECASE)
 
     for match in pattern.finditer(accused_text):
         name = match.group(1).strip().upper()
-        if name not in seen:
+        # Clean name
+        name = re.sub(r'[^A-Z\s\.]', '', name).strip()
+        if len(name) > 3 and name not in seen:
             seen.add(name)
             accused.append({
                 "name": name,
@@ -249,6 +261,19 @@ def extract_accused(text: str) -> list:
                 "dob": None,
                 "address": None
             })
+
+    if not accused:
+        for match in fallback_pattern.finditer(accused_text):
+            name = match.group(1).strip().upper()
+            name = re.sub(r'[^A-Z\s\.]', '', name).strip()
+            if len(name) > 3 and name not in seen:
+                seen.add(name)
+                accused.append({
+                    "name": name,
+                    "father_name": None,
+                    "dob": None,
+                    "address": None
+                })
 
     return accused
 
