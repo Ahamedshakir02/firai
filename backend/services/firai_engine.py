@@ -242,68 +242,98 @@ async def legal_query(question: str, context_narrative: str = "") -> dict:
     question_lower = question.lower()
 
     # ── Fast-path: direct section number lookup ──
+    final_sections = []
     section_match = _extract_section_from_query(question)
     if section_match:
         act_hint, section_num = section_match
         direct_results = _find_section_in_corpus(act_hint, section_num)
         if direct_results:
-            return _format_section_response(direct_results, question_lower)
+            final_sections = direct_results
 
     # ── Crime type matching ──
-    crime_type_match = _detect_crime_type(question_lower)
-    if crime_type_match:
-        sections = get_sections_by_crime(crime_type_match)
-        if sections:
-            return _format_crime_type_response(sections, crime_type_match, question_lower)
+    if not final_sections:
+        crime_type_match = _detect_crime_type(question_lower)
+        if crime_type_match:
+            sections = get_sections_by_crime(crime_type_match)
+            if sections:
+                final_sections = sections
 
     # ── RAG semantic search (primary fallback) ──
-    from services import legal_rag
-    if legal_rag.is_ready():
-        rag_results = legal_rag.search(question, top_k=5)
-        if rag_results:
-            return _format_section_response(rag_results, question_lower)
+    if not final_sections:
+        from services import legal_rag
+        if legal_rag.is_ready():
+            rag_results = legal_rag.search(question, top_k=5)
+            if rag_results:
+                final_sections = rag_results
 
     # ── Keyword search fallback (if RAG not available) ──
-    relevant = []
-    query_words = [w for w in question_lower.split() if len(w) > 2 and w not in {
-        "what", "the", "for", "and", "how", "who", "can", "are", "was", "has",
-        "does", "this", "that", "with", "from", "about", "which", "where",
-        "section", "act", "under", "punishment", "bailable", "bail",
-    }]
+    if not final_sections:
+        relevant = []
+        query_words = [w for w in question_lower.split() if len(w) > 2 and w not in {
+            "what", "the", "for", "and", "how", "who", "can", "are", "was", "has",
+            "does", "this", "that", "with", "from", "about", "which", "where",
+            "section", "act", "under", "punishment", "bailable", "bail",
+        }]
 
-    for section in LEGAL_CORPUS:
-        score = 0
-        title_lower = section["title"].lower()
-        desc_lower = section["description"].lower()
+        for section in LEGAL_CORPUS:
+            score = 0
+            title_lower = section["title"].lower()
+            desc_lower = section["description"].lower()
 
-        for word in query_words:
-            if word in title_lower:
-                score += 3
-            if word in desc_lower:
-                score += 1
-        if section["crime_type"].replace("_", " ") in question_lower:
-            score += 4
-        for element in section.get("elements", []):
-            if any(w in element.lower() for w in query_words):
-                score += 2
-                break
+            for word in query_words:
+                if word in title_lower:
+                    score += 3
+                if word in desc_lower:
+                    score += 1
+            if section["crime_type"].replace("_", " ") in question_lower:
+                score += 4
+            for element in section.get("elements", []):
+                if any(w in element.lower() for w in query_words):
+                    score += 2
+                    break
 
-        if score > 0:
-            relevant.append((score, section))
+            if score > 0:
+                relevant.append((score, section))
 
-    relevant.sort(key=lambda x: x[0], reverse=True)
-    top_sections = [s for _, s in relevant[:5]]
+        relevant.sort(key=lambda x: x[0], reverse=True)
+        final_sections = [s for _, s in relevant[:5]]
 
-    if not top_sections:
-        return {
-            "answer": "No relevant legal sections found for your query. Try asking with:\n"
-                      "• A specific section number (e.g., \"IPC 302\", \"BNS 115\")\n"
-                      "• A crime type (e.g., \"theft\", \"kidnapping\", \"cyber crime\")\n"
-                      "• A legal question (e.g., \"Is 420 bailable?\", \"punishment for robbery\")",
-            "relevant_sections": [],
-        }
+    # ── GENERATIVE LLM ──
+    from ai_engine.models import legal_llm
 
-    return _format_section_response(top_sections, question_lower)
+    # Extract plain text context from sections
+    context_parts = []
+    sections_list = []
+    
+    if context_narrative:
+        context_parts.append(f"FIR Narrative Context: {context_narrative}")
+        
+    for s in final_sections:
+        act_name = s.get('act', 'Unknown Act')
+        sec_num = s.get('section', 'Unknown Section')
+        title = s.get('title', '')
+        desc = s.get('description', '')
+        punishment = s.get('punishment', 'Not specified')
+        bail = "Bailable" if s.get("bailable") else ("Non-Bailable" if s.get("bailable") is False else "Unknown")
+        
+        context_parts.append(f"{act_name} Section {sec_num}: {title}\nDescription: {desc}\nPunishment: {punishment}\nBail Status: {bail}")
+        
+        sections_list.append({
+            "section": sec_num,
+            "act": act_name,
+            "description": title,
+        })
+
+    context_str = "\n\n".join(context_parts) if context_parts else "No specific legal sections found for this query."
+
+    # Generate conversational answer in thread to avoid blocking
+    import asyncio
+    llm_answer = await asyncio.to_thread(legal_llm.generate_answer, question, context_str)
+
+    return {
+        "answer": llm_answer,
+        "relevant_sections": sections_list,
+    }
 
 
 def _extract_section_from_query(question: str) -> tuple:

@@ -11,6 +11,8 @@ python-dotenv==1.0.1
 # AI / ML — Custom FirAI Engine (no external AI APIs)
 # Note: torch is installed separately in Dockerfile (CPU-only, saves ~1GB)
 sentence-transformers==3.1.1
+transformers>=4.40.0
+accelerate>=0.28.0
 scikit-learn==1.5.2
 numpy==2.1.1
 

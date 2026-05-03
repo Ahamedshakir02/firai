@@ -51,6 +51,10 @@ async def lifespan(app: FastAPI):
     await asyncio.to_thread(legal_rag.warmup)
     print("[FirAI] Legal RAG ready.")
 
+    print("[FirAI] Loading Generative Legal Assistant LLM...")
+    from ai_engine.models import legal_llm
+    await asyncio.to_thread(legal_llm.warmup)
+
     print("[FirAI] Backend ready!")
     yield
 
