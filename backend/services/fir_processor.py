@@ -339,3 +339,38 @@ def process_fir_text(text: str) -> dict:
         "district": None,
         "police_station": None,
     }
+
+
+def generate_fir_filename(
+    fir_number: Optional[str] = None,
+    police_station: Optional[str] = None,
+    fallback_name: Optional[str] = None,
+    extension: str = ".pdf",
+) -> str:
+    """
+    Generate a standardized FIR filename from extracted metadata.
+
+    Examples:
+        fir_number='0517/2024', station='KALPAKANCHERRY' → 'FIR_0517_2024_KALPAKANCHERRY.pdf'
+        fir_number='0017/2025', station='KOTTAKKAL'      → 'FIR_0017_2025_KOTTAKKAL.pdf'
+        fir_number=None, fallback_name='upload.pdf'      → 'upload.pdf'  (unchanged)
+    """
+    if not fir_number:
+        return fallback_name or f"FIR_unknown{extension}"
+
+    # Split '0517/2024' → ['0517', '2024']
+    parts = ["FIR"]
+    for p in re.split(r'[/\\-]', fir_number):
+        p = p.strip()
+        if p:
+            parts.append(p)
+
+    # Append police station (sanitized for filenames)
+    if police_station:
+        clean_station = re.sub(r'[^A-Za-z0-9]', '_', police_station.strip())
+        clean_station = re.sub(r'_+', '_', clean_station).strip('_')
+        if clean_station:
+            parts.append(clean_station)
+
+    stem = "_".join(parts)
+    return f"{stem}{extension}"

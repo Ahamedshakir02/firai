@@ -26,6 +26,7 @@ from schemas.fir import (
 )
 from services import fir_processor
 from services import firai_engine
+from services.fir_processor import generate_fir_filename
 from services.embedding_engine import embedding_engine
 from routers.auth import require_officer
 
@@ -173,14 +174,27 @@ async def download_fir(fir_id: int, db: AsyncSession = Depends(get_db)):
     Download a FIR. Returns the actual PDF if available, 
     otherwise falls back to a structured JSON file.
     """
-    # Check if we have the actual PDF file for this FIR
-    pdf_path = os.path.join(os.path.dirname(__file__), "..", "data", "raw_pdfs", f"{fir_id}.pdf")
-    if os.path.exists(pdf_path):
-        return FileResponse(
-            path=pdf_path, 
-            filename=f"FIR_{fir_id}.pdf", 
-            media_type="application/pdf"
-        )
+    # Look up the FIR to get its proper file_name
+    result_fir = await db.execute(select(FIR).where(FIR.id == fir_id))
+    fir_record = result_fir.scalar_one_or_none()
+
+    pdf_dir = os.path.join(os.path.dirname(__file__), "..", "data", "raw_pdfs")
+
+    # Try the proper file_name first, then fall back to legacy id-based name
+    candidates = []
+    if fir_record and fir_record.file_name:
+        candidates.append(fir_record.file_name)
+    candidates.append(f"{fir_id}.pdf")
+
+    for candidate in candidates:
+        pdf_path = os.path.join(pdf_dir, candidate)
+        if os.path.exists(pdf_path):
+            download_name = fir_record.file_name if fir_record and fir_record.file_name else f"FIR_{fir_id}.pdf"
+            return FileResponse(
+                path=pdf_path,
+                filename=download_name,
+                media_type="application/pdf"
+            )
 
     # Fallback to JSON if PDF is not available
     result = await db.execute(select(FIR).where(FIR.id == fir_id))
@@ -280,9 +294,17 @@ async def upload_fir_pdf(
                 duplicate_of_id=existing.id,
             )
 
+        # Generate proper FIR-based filename
+        proper_filename = generate_fir_filename(
+            fir_number=fir_number,
+            police_station=processed.get("police_station"),
+            fallback_name=file.filename,
+            extension=".pdf",
+        )
+
         # Create FIR record
         fir = FIR(
-            file_name=file.filename,
+            file_name=proper_filename,
             fir_number=fir_number,
             narrative=narrative,
             full_text=processed["full_text"],
@@ -315,13 +337,12 @@ async def upload_fir_pdf(
 
         await db.commit()
 
-        # Save PDF to raw_pdfs folder
+        # Save PDF to raw_pdfs folder with proper FIR-based name
         import shutil
         pdf_dir = os.path.join(os.path.dirname(__file__), "..", "data", "raw_pdfs")
         os.makedirs(pdf_dir, exist_ok=True)
-        pdf_dest = os.path.join(pdf_dir, f"{fir.id}.pdf")
+        pdf_dest = os.path.join(pdf_dir, proper_filename)
         
-        # In case the file handle was still open or something, temp_path still exists
         try:
             shutil.copy2(temp_path, pdf_dest)
         except Exception as e:
@@ -488,9 +509,17 @@ async def bulk_upload_firs(
             except Exception:
                 analysis = firai_engine._fallback_analysis(narrative)
 
+            # Generate proper FIR-based filename
+            proper_filename = generate_fir_filename(
+                fir_number=fir_number,
+                police_station=processed.get("police_station"),
+                fallback_name=file.filename,
+                extension=".pdf",
+            )
+
             # Create FIR record
             fir = FIR(
-                file_name=file.filename,
+                file_name=proper_filename,
                 fir_number=fir_number,
                 narrative=narrative,
                 full_text=processed["full_text"],

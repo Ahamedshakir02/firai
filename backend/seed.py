@@ -14,7 +14,8 @@ from database import engine, async_session, Base
 from models.fir import FIR, Accused
 from services.embedding_engine import embedding_engine
 from services import firai_engine
-from services.fir_processor import extract_fir_number
+from services.fir_processor import extract_fir_number, generate_fir_filename
+from services.fir_processor import extract_district_and_station
 from config import get_settings
 
 settings = get_settings()
@@ -71,19 +72,32 @@ async def seed_database():
                 # Use custom FirAI Engine for analysis
                 analysis = firai_engine._fallback_analysis(narrative)
 
-                # Extract FIR number from full_text if available
+                # Extract FIR number and station from full_text if available
                 fir_num = None
+                district = None
+                station = None
                 full_text = data.get("full_text", "")
                 if full_text:
                     fir_num = extract_fir_number(full_text)
+                    district, station = extract_district_and_station(full_text)
+
+                # Generate proper FIR-based filename
+                proper_filename = generate_fir_filename(
+                    fir_number=fir_num,
+                    police_station=station,
+                    fallback_name=data.get("file", filename),
+                    extension=os.path.splitext(filename)[1],
+                )
 
                 # Create FIR record
                 fir = FIR(
-                    file_name=data.get("file", filename),
+                    file_name=proper_filename,
                     fir_number=fir_num,
                     narrative=narrative,
                     full_text=full_text,
                     fir_date=fir_date,
+                    district=district,
+                    police_station=station,
                     place=data.get("place"),
                     acts=data.get("acts"),
                     complainant=data.get("complainant"),
