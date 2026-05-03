@@ -6,7 +6,7 @@
 
 ## Overview
 
-A premium, dark-themed single-page application built with React and Vite. Provides 6 investigation pages for Kerala Police officers to analyze FIRs, find similar cases, get legal guidance, and detect crime patterns.
+A premium, dark-themed single-page application built with React and Vite. Provides 7 investigation pages for Kerala Police officers to analyze FIRs, find similar cases, get legal guidance, and detect crime patterns.
 
 ### Design Philosophy
 
@@ -42,7 +42,7 @@ frontend/
 │
 └── src/
     ├── main.jsx             # React DOM root
-    ├── App.jsx              # Router with all 6 pages
+    ├── App.jsx              # Router with all 7 pages + ProtectedRoute
     ├── index.css            # 🎨 Complete design system
     ├── App.css
     │
@@ -59,7 +59,7 @@ frontend/
         ├── Dashboard.jsx         # Crime stats, charts, recent FIRs
         ├── FIRAnalyzer.jsx       # Upload/paste/bulk → AI analysis
         ├── CaseIntelligence.jsx  # Browse, search, similar cases, PDF download
-        ├── LegalAssistant.jsx    # Gemini chat + IPC/BNS reference
+        ├── LegalAssistant.jsx    # Custom AI legal Q&A + IPC/BNS reference
         ├── MOPatterns.jsx        # MO pattern detection & alerts
         ├── Translation.jsx       # Malayalam ↔ English translation
         ├── Login.jsx             # JWT Authentication & Registration
@@ -103,7 +103,7 @@ Results panel shows:
 - Similar cases panel (multi-dimensional: narrative embedding + crime type + accused matching)
 
 ### 4. Legal Assistant (`/legal-assistant`)
-- **Chat Interface**: Ask legal questions to Gemini 2.5 Flash
+- **Chat Interface**: Ask legal questions to the custom FirAI legal engine
 - Pre-built quick questions for common officer queries
 - Retains chat history and identifies the requesting officer
 - Relevant IPC/BNS sections shown as badges
@@ -112,7 +112,7 @@ Results panel shows:
 ### 5. MO Patterns (`/mo-patterns`)
 - Click "Run MO Detection" to analyze all narratives
 - Pattern cards with description, crime type, and linked FIR IDs
-- Uses DBSCAN clustering + Gemini analysis
+- Uses DBSCAN clustering + FirAI pattern analysis
 
 ### 6. Translation (`/translation`)
 - Source/target language selectors (Malayalam, English, Hindi)
