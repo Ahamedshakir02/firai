@@ -180,16 +180,18 @@ async def download_fir(fir_id: int, db: AsyncSession = Depends(get_db)):
 
     pdf_dir = os.path.join(os.path.dirname(__file__), "..", "data", "raw_pdfs")
 
-    # Try the proper file_name first, then fall back to legacy id-based name
+    # Try the proper file_name first (convert .json to .pdf just in case), then fall back to legacy id-based name
     candidates = []
     if fir_record and fir_record.file_name:
-        candidates.append(fir_record.file_name)
+        import re
+        pdf_name = re.sub(r'\.json$', '.pdf', fir_record.file_name, flags=re.IGNORECASE)
+        candidates.append(pdf_name)
     candidates.append(f"{fir_id}.pdf")
 
     for candidate in candidates:
         pdf_path = os.path.join(pdf_dir, candidate)
         if os.path.exists(pdf_path):
-            download_name = fir_record.file_name if fir_record and fir_record.file_name else f"FIR_{fir_id}.pdf"
+            download_name = pdf_name if 'pdf_name' in locals() else f"FIR_{fir_id}.pdf"
             return FileResponse(
                 path=pdf_path,
                 filename=download_name,

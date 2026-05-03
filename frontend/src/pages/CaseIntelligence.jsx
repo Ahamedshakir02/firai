@@ -157,8 +157,7 @@ export default function CaseIntelligence() {
                 >
                   <div className="fir-header">
                     <span className="fir-id">
-                      {fir.fir_number ? `Case ${fir.fir_number}` : `#${fir.id}`}
-                      {fir.police_station ? ` — ${fir.police_station}` : (fir.file_name ? ` — ${fir.file_name}` : '')}
+                      {fir.file_name ? fir.file_name.replace(/\.(json|pdf|txt)$/i, '') : (fir.fir_number ? `Case ${fir.fir_number} — ${fir.police_station || ''}` : `FIR #${fir.id}`)}
                     </span>
                     <span className={`badge badge-${fir.severity || 'medium'}`}>
                       {fir.severity || 'N/A'}
@@ -191,8 +190,8 @@ export default function CaseIntelligence() {
           <div className="card" style={{ position: 'sticky', top: 90, alignSelf: 'start', maxHeight: 'calc(100vh - 120px)', overflowY: 'auto' }}>
             <div className="card-header">
               <div className="card-title">
-                {selectedFIR.fir_number ? `Case ${selectedFIR.fir_number}` : `FIR #${selectedFIR.id}`}
-                {selectedFIR.police_station && (
+                {selectedFIR.file_name ? selectedFIR.file_name.replace(/\.(json|pdf|txt)$/i, '') : (selectedFIR.fir_number ? `Case ${selectedFIR.fir_number}` : `FIR #${selectedFIR.id}`)}
+                {!selectedFIR.file_name && selectedFIR.police_station && (
                   <span style={{ fontSize: '0.8rem', fontWeight: 400, color: 'var(--text-muted)', marginLeft: 8 }}>
                     {selectedFIR.police_station} PS
                   </span>

@@ -414,10 +414,18 @@ def _format_section_response(sections: list, question_lower: str) -> dict:
 
     for s in sections:
         # Section header
-        answer_parts.append(f"**{s['act']} Section {s['section']} — {s['title']}**")
-        answer_parts.append(f"{s['description']}")
+        act_name = s.get('act', 'Unknown Act')
+        sec_num = s.get('section', 'Unknown Section')
+        title = s.get('title', '')
+        desc = s.get('description', '')
+        
+        answer_parts.append(f"**{act_name} Section {sec_num} — {title}**")
+        if desc:
+            answer_parts.append(f"{desc}")
         answer_parts.append(f"")
-        answer_parts.append(f"**Punishment:** {s['punishment']}")
+        
+        punishment = s.get('punishment', 'Not specified in corpus')
+        answer_parts.append(f"**Punishment:** {punishment}")
 
         # Bail info (always include, highlight if bail query)
         bail_status = "Yes ✅" if s.get("bailable") else ("No ❌" if s.get("bailable") is False else "N/A")
@@ -441,9 +449,9 @@ def _format_section_response(sections: list, question_lower: str) -> dict:
         answer_parts.append("")
 
         sections_list.append({
-            "section": s["section"],
-            "act": s["act"],
-            "description": s["title"],
+            "section": sec_num,
+            "act": act_name,
+            "description": title,
         })
 
     return {
@@ -459,16 +467,20 @@ def _format_crime_type_response(sections: list, crime_type: str, question_lower:
 
     sections_list = []
     for s in sections:
-        answer_parts.append(f"**{s['act']} Section {s['section']} — {s['title']}**")
-        answer_parts.append(f"Punishment: {s['punishment']}")
+        act_name = s.get('act', 'Unknown Act')
+        sec_num = s.get('section', 'Unknown Section')
+        title = s.get('title', '')
+        
+        answer_parts.append(f"**{act_name} Section {sec_num} — {title}**")
+        answer_parts.append(f"Punishment: {s.get('punishment', 'Not specified in corpus')}")
         bail = "Yes ✅" if s.get("bailable") else ("No ❌" if s.get("bailable") is False else "N/A")
         answer_parts.append(f"Bailable: {bail}")
         answer_parts.append("")
 
         sections_list.append({
-            "section": s["section"],
-            "act": s["act"],
-            "description": s["title"],
+            "section": sec_num,
+            "act": act_name,
+            "description": title,
         })
 
     # Add investigation steps for this crime type

@@ -85,10 +85,15 @@ def lookup_section(act: str, section: str) -> dict:
 
     for key in act_keys:
         entry = _SECTION_INDEX.get((key, section))
+        if not entry and "(" in section:
+            # Fallback: remove parentheses (e.g., 318(4) -> 318)
+            base_section = section.split("(")[0]
+            entry = _SECTION_INDEX.get((key, base_section))
+            
         if entry:
             return {
                 "act": entry["act"],
-                "section": entry["section"],
+                "section": entry["section"] if section == entry["section"] else f"{entry['section']} (matched from {section})",
                 "description": entry.get("title", entry.get("description", "")),
                 "offense_type": entry.get("crime_type", ""),
                 "cognizable": entry.get("cognizable"),

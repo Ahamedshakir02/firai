@@ -158,8 +158,9 @@ async def calculate_punishment(
     for s in request.sections:
         # Search in corpus
         match = None
+        base_section = s.section.split("(")[0]
         for entry in LEGAL_CORPUS:
-            if entry["section"] == s.section:
+            if entry["section"] == s.section or entry["section"] == base_section:
                 act_upper = s.act.upper()
                 entry_act_upper = entry["act"].upper()
                 if act_upper in entry_act_upper or entry_act_upper in act_upper:
