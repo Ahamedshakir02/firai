@@ -42,6 +42,7 @@ Kerala Police officers face fragmented processes when accessing FIRs, case updat
 - **Provides AI legal guidance** powered by a comprehensive Indian legal knowledge base
 - **Protects Sensitive Data** via a secure, JWT-based officer authentication system and registration portal
 - **Centralises all FIR data** with original PDF document storage and retrieval
+- **Auto-names and deduplicates** uploaded FIR files using extracted metadata (FIR number, year, police station)
 - **Translates narratives** between Malayalam and English via Bhashini API
 
 ### Core Principle: Narrative-Centric
@@ -70,9 +71,9 @@ The AI learns directly from **Indian law texts** (IPC, BNS, CrPC, BNSS, Kerala P
 
 ### Training Data
 
-- **36 real Kerala Police FIRs** (Malayalam narratives) with IPC/BNS sections
+- **90+ real Kerala Police FIRs** (Malayalam narratives) from 10+ police stations across Kerala with IPC/BNS sections
 - **Indian Legal Corpus** — 23+ law sections with full descriptions, elements, punishment, investigation steps
-- **Data augmentation** — word shuffling, word dropping, legal corpus examples → 540+ training examples
+- **Data augmentation** — word shuffling, word dropping, legal corpus examples → 1000+ training examples
 - **Zero external AI dependency** — all labels derived from the law itself
 
 ### Performance
@@ -339,7 +340,7 @@ ai_engine/trained_models/
 Make sure Docker Desktop is running, then in the project directory:
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
 ### What happens on first run
@@ -348,7 +349,7 @@ docker-compose up --build
 |---|---|---|
 | 🔨 **Build** | Downloads base images, installs Python packages, npm packages | 3–8 min |
 | 🗄️ **Database** | PostgreSQL initialises with `firai_db` | ~10 sec |
-| 🤖 **Backend** | FastAPI starts, loads custom AI models, seeds 36 FIRs | 1–2 min |
+| 🤖 **Backend** | FastAPI starts, loads custom AI models, seeds 90+ FIRs | 1–2 min |
 | ⚛️ **Frontend** | Vite dev server starts | ~15 sec |
 
 > **Subsequent runs** (without `--build`) start in under 30 seconds.
@@ -356,21 +357,21 @@ docker-compose up --build
 ### Running in the background (detached mode)
 
 ```bash
-docker-compose up --build -d
+docker compose up --build -d
 ```
 
 View logs anytime:
 ```bash
-docker-compose logs -f           # all services
-docker-compose logs -f backend   # backend only
-docker-compose logs -f frontend  # frontend only
+docker compose logs -f           # all services
+docker compose logs -f backend   # backend only
+docker compose logs -f frontend  # frontend only
 ```
 
 ### Stopping the project
 
 ```bash
-docker-compose down              # stops containers, keeps data
-docker-compose down -v           # stops containers AND deletes database (fresh start)
+docker compose down              # stops containers, keeps data
+docker compose down -v           # stops containers AND deletes database (fresh start)
 ```
 
 ---
@@ -385,7 +386,7 @@ Once started, check these URLs in your browser:
 | **Backend API** | http://localhost:8000/api/health | `{"status": "healthy"}` |
 | **API Docs** | http://localhost:8000/docs | Interactive Swagger UI |
 
-You should see **36 FIRs** already loaded in the Case Intelligence page, sorted by real case numbers (e.g. `Case 0008/2025`).
+You should see **90+ FIRs** already loaded in the Case Intelligence page, sorted by real case numbers (e.g. `Case 0008/2025`).
 
 ---
 
@@ -418,9 +419,12 @@ firai/
 │   ├── main.py                # App entry point, startup hooks
 │   ├── config.py              # Settings loaded from .env
 │   ├── database.py            # SQLAlchemy async engine + session
-│   ├── seed.py                # Seeds 36 existing FIRs on first boot
+│   ├── seed.py                # Seeds existing FIRs on first boot (auto-names files)
 │   ├── seed_officers.py       # Seeds demo officer accounts
 │   ├── requirements.txt
+│   ├── scripts/               # 🔧 Data Management Utilities
+│   │   ├── rename_firs.py     # Rename existing JSONs/PDFs to FIR_XXXX_YYYY_STATION format
+│   │   └── reprocess_all_firs.py  # Wipe & re-OCR all PDFs (dedup + auto-name)
 │   ├── ai_engine/             # 🧠 Custom AI System
 │   │   ├── data/
 │   │   │   ├── label_generator.py   # Auto-derives labels from IPC/BNS
@@ -439,7 +443,7 @@ firai/
 │   │   └── officer.py         # Officer, RegistrationRequest ORM models
 │   ├── routers/
 │   │   ├── auth.py            # JWT authentication, registration, admin approval
-│   │   ├── firs.py            # FIR upload, analysis, similarity search, export
+│   │   ├── firs.py            # FIR upload (auto-names), analysis, similarity, export
 │   │   ├── dashboard.py       # Statistics endpoint
 │   │   ├── legal.py           # Legal Q&A, section lookup
 │   │   ├── mo_patterns.py     # MO pattern detection
@@ -447,16 +451,16 @@ firai/
 │   ├── schemas/
 │   │   └── fir.py             # Pydantic request/response schemas
 │   ├── services/
-│   │   ├── firai_engine.py    # 🧠 Main AI service (replaces Gemini)
+│   │   ├── firai_engine.py    # 🧠 Main AI service (custom, no external APIs)
 │   │   ├── embedding_engine.py# Sentence-Transformer similarity search
-│   │   ├── fir_processor.py   # PDF OCR + field extraction
+│   │   ├── fir_processor.py   # PDF OCR + field extraction + auto-naming
 │   │   ├── bhashini_service.py# Malayalam translation (Bhashini + Google fallback)
 │   │   ├── legal_kb.py        # IPC/BNS knowledge base
 │   │   └── mo_detector.py     # MO pattern detection logic
 │   ├── storage/               # Runtime file storage
 │   └── data/
-│       ├── structured/        # 36 pre-processed FIR JSON files
-│       └── raw_pdfs/          # Original FIR PDF documents
+│       ├── structured/        # 90+ structured FIR JSON files (auto-named)
+│       └── raw_pdfs/          # Original FIR PDF documents (auto-named)
 │
 └── frontend/                  # React / Vite
     ├── Dockerfile
@@ -566,8 +570,8 @@ The full interactive API docs are available at **http://localhost:8000/docs** wh
 
 The database volume has stale data from a previous configuration. Fix:
 ```bash
-docker-compose down -v    # deletes old volume
-docker-compose up --build # fresh start with correct DB name
+docker compose down -v    # deletes old volume
+docker compose up --build # fresh start with correct DB name
 ```
 
 ---
@@ -587,7 +591,7 @@ import { firAPI } from '../../api/client'; // ❌ two levels up
 
 The database container was restarted and the connection pool holds stale connections. This is handled automatically by `pool_pre_ping=True` in the latest code. If it persists, restart the backend:
 ```bash
-docker-compose restart backend
+docker compose restart backend
 ```
 
 ---
@@ -600,7 +604,7 @@ Vite cached an error. Hard refresh the browser:
 
 Or restart the frontend container:
 ```bash
-docker-compose restart frontend
+docker compose restart frontend
 ```
 
 ---
@@ -631,6 +635,42 @@ Then restart Docker Desktop.
 | **OCR** | PyMuPDF + Tesseract OCR (`mal+eng`) | PDF text extraction |
 | **Translation** | Bhashini API (AI4Bharat) + Google Translate fallback (deep-translator) | Malayalam ↔ English |
 | **Containerisation** | Docker, Docker Compose | One-command deployment |
+
+---
+
+## 📂 FIR File Management
+
+All FIR files follow a standardized naming convention: `FIR_{number}_{year}_{station}`
+
+### How It Works
+
+| Scenario | What Happens |
+|---|---|
+| **Upload via app** | PDF is OCR'd → FIR number extracted → saved as `FIR_0517_2024_KALPAKANCHERRY.pdf` |
+| **Bulk upload** | Each PDF auto-named based on extracted metadata |
+| **Database seed** | JSON files auto-named with FIR number + station on first boot |
+
+### Data Management Scripts
+
+```bash
+cd backend
+
+# Rename existing files to standardized FIR names (dry run)
+python scripts/rename_firs.py
+
+# Apply renames
+python scripts/rename_firs.py --apply
+
+# Full reprocess: delete all JSONs, remove duplicate PDFs, re-OCR everything (dry run)
+python scripts/reprocess_all_firs.py
+
+# Apply reprocessing (requires Tesseract OCR installed)
+python scripts/reprocess_all_firs.py --apply
+```
+
+> **Note:** Reprocessing requires Tesseract OCR with Malayalam language data. Install via:
+> - **Windows:** `winget install UB-Mannheim.TesseractOCR` + download `mal.traineddata`
+> - **Docker:** Already included in the Dockerfile
 
 ---
 
