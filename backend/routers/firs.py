@@ -74,6 +74,7 @@ async def list_firs(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     crime_type: Optional[str] = None,
+    police_station: Optional[str] = None,
     severity: Optional[str] = None,
     search: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
@@ -88,6 +89,8 @@ async def list_firs(
 
     if crime_type:
         query = query.where(FIR.crime_type == crime_type)
+    if police_station:
+        query = query.where(FIR.police_station.ilike(f"%{police_station}%"))
     if severity:
         query = query.where(FIR.severity == severity)
     if search:

@@ -10,6 +10,7 @@ export default function CaseIntelligence() {
   const [loadingSimilar, setLoadingSimilar] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('');
+  const [policeStation, setPoliceStation] = useState('');
 
   useEffect(() => { loadFIRs(); }, []);
 
@@ -18,6 +19,7 @@ export default function CaseIntelligence() {
       const params = {};
       if (searchQuery) params.search = searchQuery;
       if (filterType) params.crime_type = filterType;
+      if (policeStation) params.police_station = policeStation;
       const { data } = await firAPI.list(params);
       setFirs(data);
     } catch (err) {
@@ -126,6 +128,26 @@ export default function CaseIntelligence() {
             <option value="property_damage">Property Damage</option>
             <option value="fraud">Fraud</option>
             <option value="other">Other</option>
+          </select>
+          <select
+            className="form-select"
+            style={{ width: 180 }}
+            value={policeStation}
+            onChange={(e) => { setPoliceStation(e.target.value); setLoading(true); setTimeout(loadFIRs, 100); }}
+          >
+            <option value="">All Stations</option>
+            <option value="POOJAPPURA">Poojappura</option>
+            <option value="KATTAPPANA">Kattappana</option>
+            <option value="TIRUR">Tirur</option>
+            <option value="KAZHAKUTTAM">Kazhakuttam</option>
+            <option value="THAMPANOOR">Thampanoor</option>
+            <option value="MUSEUM">Museum</option>
+            <option value="MEDICAL COLLEGE">Medical College</option>
+            <option value="PALLIKKAL">Pallikkal</option>
+            <option value="NEDUMANGAD">Nedumangad</option>
+            <option value="CHITTOOR">Chittoor</option>
+            <option value="PALAKKAD TOWN">Palakkad Town</option>
+            <option value="KOZHIKODE TOWN">Kozhikode Town</option>
           </select>
           <button type="submit" className="btn btn-primary">
             <Filter size={16} /> Filter

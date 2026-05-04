@@ -591,10 +591,51 @@ LEGAL_CORPUS = [
 ]
 
 
+def _load_extracted_rules():
+    import json
+    import os
+    
+    rules_file = os.path.join(os.path.dirname(__file__), "..", "..", "data", "rules", "extracted_rules.json")
+    if not os.path.exists(rules_file):
+        return
+        
+    try:
+        with open(rules_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            
+        # Add to LEGAL_CORPUS if not already present (to preserve our curated metadata)
+        existing_keys = {(s["act"].upper(), s["section"]) for s in LEGAL_CORPUS}
+        
+        added = 0
+        for doc in data:
+            act = doc["act"]
+            for sec in doc["sections"]:
+                key = (act.upper(), sec["section"])
+                if key not in existing_keys:
+                    LEGAL_CORPUS.append({
+                        "section": sec["section"],
+                        "act": act,
+                        "title": sec["title"],
+                        "description": sec["description"],
+                        "elements": [],
+                        "punishment": "See description",
+                        "cognizable": None,
+                        "bailable": None,
+                        "crime_type": "other",
+                        "severity": "medium",
+                        "investigation_steps": []
+                    })
+                    added += 1
+        print(f"[Legal Corpus] Loaded {added} additional sections from extracted rules.")
+    except Exception as e:
+        print(f"[Legal Corpus] Error loading extracted rules: {e}")
+
+# Load the dynamic rules immediately
+_load_extracted_rules()
+
 def get_corpus():
     """Return the full legal corpus."""
     return LEGAL_CORPUS
-
 
 def get_sections_by_crime(crime_type: str) -> list:
     """Get all legal sections related to a crime type."""
