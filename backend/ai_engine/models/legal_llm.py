@@ -1,56 +1,44 @@
 """
-Legal LLM Service
------------------
+Legal LLM Service (Ollama Integration)
+--------------------------------------
 Local generative AI for conversational legal answers.
-Uses Qwen2.5-0.5B-Instruct running on CPU.
+Connects to an Ollama instance running on the host machine.
+100% offline and sovereign.
 """
 
 import os
-from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
-import torch
+import httpx
 
-_model = None
-_tokenizer = None
-_pipe = None
+# host.docker.internal resolves to the Windows host machine from inside the Docker container
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://host.docker.internal:11434")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2")
 
 def warmup():
-    global _model, _tokenizer, _pipe
-    if _model is not None:
-        return
-    
-    print("[Legal LLM] Loading Qwen2.5-0.5B-Instruct for conversational answers...")
-    model_id = "Qwen/Qwen2.5-0.5B-Instruct"
-    
+    """
+    Check if Ollama is accessible on startup.
+    Does not block if Ollama is not running yet.
+    """
+    print(f"[Legal LLM] Warming up Ollama integration... Target: {OLLAMA_URL}, Model: {OLLAMA_MODEL}")
     try:
-        # Run on CPU. 
-        _tokenizer = AutoTokenizer.from_pretrained(model_id)
-        _model = AutoModelForCausalLM.from_pretrained(
-            model_id, 
-            torch_dtype=torch.float32, 
-            device_map="cpu",
-            low_cpu_mem_usage=True
-        )
-        
-        _pipe = pipeline(
-            "text-generation",
-            model=_model,
-            tokenizer=_tokenizer,
-            max_new_tokens=256,
-            temperature=0.3,
-            do_sample=True,
-            repetition_penalty=1.1,
-        )
-        print("[Legal LLM] Generative model loaded successfully.")
+        with httpx.Client(timeout=3.0) as client:
+            response = client.get(f"{OLLAMA_URL}/api/tags")
+            if response.status_code == 200:
+                models = [m["name"] for m in response.json().get("models", [])]
+                print(f"[Legal LLM] Connected to Ollama. Available models: {', '.join(models)}")
+                
+                # Check if requested model exists
+                if not any(OLLAMA_MODEL in m for m in models):
+                    print(f"[Legal LLM] WARNING: Model '{OLLAMA_MODEL}' not found. You may need to run `ollama pull {OLLAMA_MODEL}` on your host machine.")
+            else:
+                print(f"[Legal LLM] Ollama is responding but returned status {response.status_code}")
     except Exception as e:
-        print(f"[Legal LLM] Error loading model: {e}")
+        print(f"[Legal LLM] Ollama not accessible yet. Will retry on first query. Error: {e}")
 
 def is_ready():
-    return _pipe is not None
+    # Ollama is an external service, we assume it's ready and handle failures during the request
+    return True
 
 def generate_answer(question: str, context: str) -> str:
-    if not is_ready():
-        return "I'm currently loading my advanced conversational models. I'll be ready in just a moment!"
-        
     system_prompt = (
         "You are an expert AI Legal Assistant for the Kerala Police. "
         "Your task is to answer legal questions accurately based ONLY on the provided context. "
@@ -58,31 +46,36 @@ def generate_answer(question: str, context: str) -> str:
         "politely inform the user. Keep your answer conversational, concise, and professional."
     )
     
-    user_prompt = f"Context from Knowledge Base:\n{context}\n\nQuestion:\n{question}"
-    
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_prompt}
-    ]
+    prompt = f"System:\n{system_prompt}\n\nContext from Knowledge Base:\n{context}\n\nUser Question:\n{question}"
     
     try:
-        # Use chat template
-        prompt = _tokenizer.apply_chat_template(
-            messages, 
-            tokenize=False, 
-            add_generation_prompt=True
-        )
-        
-        outputs = _pipe(prompt)
-        generated_text = outputs[0]["generated_text"]
-        
-        # Extract only the assistant's reply (Qwen uses <|im_start|> and <|im_end|>)
-        if "<|im_start|>assistant" in generated_text:
-            reply = generated_text.split("<|im_start|>assistant\n")[-1].split("<|im_end|>")[0].strip()
-        else:
-            reply = generated_text[len(prompt):].strip()
+        with httpx.Client(timeout=60.0) as client:
+            response = client.post(
+                f"{OLLAMA_URL}/api/generate",
+                json={
+                    "model": OLLAMA_MODEL,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.3
+                    }
+                }
+            )
             
-        return reply
+            if response.status_code == 200:
+                data = response.json()
+                return data.get("response", "No response generated.")
+            else:
+                print(f"[Legal LLM] Ollama API Error: {response.text}")
+                return "I'm having trouble communicating with the local Ollama brain. Please ensure Ollama is running on your host machine."
+                
+    except httpx.ConnectError:
+        return (
+            "Cannot connect to the local AI engine. "
+            f"Please ensure Ollama is running on your host machine and the model `{OLLAMA_MODEL}` is downloaded."
+        )
+    except httpx.ReadTimeout:
+        return "The local AI engine is taking too long to respond. It might be overloaded or still loading the model into memory."
     except Exception as e:
         print(f"[Legal LLM] Generation error: {e}")
         return "I encountered an error while generating a response. Please check the backend logs."
