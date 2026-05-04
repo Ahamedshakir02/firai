@@ -59,7 +59,7 @@ frontend/
         ├── Dashboard.jsx         # Crime stats, charts, recent FIRs
         ├── FIRAnalyzer.jsx       # Upload/paste/bulk → AI analysis
         ├── CaseIntelligence.jsx  # Browse, search, similar cases, PDF download
-        ├── LegalAssistant.jsx    # Custom AI legal Q&A + IPC/BNS reference
+        ├── LegalAssistant.jsx    # Local Ollama AI Q&A + IPC ↔ BNS Mapper + Punishment Calculator
         ├── MOPatterns.jsx        # MO pattern detection & alerts
         ├── Translation.jsx       # Malayalam ↔ English translation
         ├── Login.jsx             # JWT Authentication & Registration

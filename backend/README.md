@@ -18,7 +18,7 @@ The backend provides all API endpoints for FIR management, AI analysis, legal gu
 - **AI Analysis**: Crime classification, risk scoring, IPC/BNS mapping (via custom FirAI Engine)
 - **Smart Similarity Search**: Multi-dimensional scoring (Narrative embeddings + accused matching + crime types)
 - **MO Detection**: Cross-narrative pattern detection using DBSCAN clustering
-- **Legal Knowledge**: Built-in IPC/BNS section database + AI-powered Q&A
+- **Legal Knowledge**: Built-in IPC/BNS database, IPC ↔ BNS Cross-Mapper, Punishment Calculator, and 100% sovereign AI Q&A via local Ollama.
 - **Translation**: Malayalam ↔ English via Bhashini API
 - **Database Seeding**: Auto-imports 90+ existing FIR JSONs and creates initial Admin users on first boot
 

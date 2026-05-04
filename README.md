@@ -67,14 +67,14 @@ The AI learns directly from **Indian law texts** (IPC, BNS, CrPC, BNSS, Kerala P
 | 2 | **FirNER** | spaCy Custom NER Pipeline | Entity extraction (names, locations, vehicles, amounts) |
 | 3 | **FirSummarizer** | TextRank + Template Engine | English narrative summarization |
 | 4 | **FirLegalMapper** | TF-IDF + Multi-label Classifier | IPC/BNS section prediction |
-| 5 | **FirLegalLLM** | Custom Transformer *(Phase 2)* | Legal Q&A from Indian law corpus |
+| 5 | **FirLegalLLM** | Ollama Local LLM (llama3.2) | 100% Sovereign Legal Q&A (RAG augmented) |
 
-### Training Data
+### Training Data & Context
 
 - **90+ real Kerala Police FIRs** (Malayalam narratives) from 10+ police stations across Kerala with IPC/BNS sections
-- **Indian Legal Corpus** — 23+ law sections with full descriptions, elements, punishment, investigation steps
-- **Data augmentation** — word shuffling, word dropping, legal corpus examples → 1000+ training examples
-- **Zero external AI dependency** — all labels derived from the law itself
+- **Indian Legal Corpus** — Comprehensive knowledge base containing elements, punishments, bail status, and investigation steps.
+- **IPC to BNS Transition Map** — Accurate cross-referencing between the Indian Penal Code (1860) and Bharatiya Nyaya Sanhita (2023).
+- **Zero external AI dependency** — all classification labels derived from the law itself, and generative answers powered by local Ollama.
 
 ### Performance
 
@@ -400,7 +400,7 @@ You should see **90+ FIRs** already loaded in the Case Intelligence page, sorted
 | **Dashboard** | `/` | Crime stats, severity breakdown, monthly trends, recent FIRs |
 | **FIR Analyzer** | `/fir-analyzer` | Upload PDF or paste narrative → Custom AI classifies crime, extracts sections, suggests investigation steps |
 | **Case Intelligence** | `/case-intelligence` | Browse & search FIRs by case number, multi-dimensional smart similarity (accused match & embeddings) with direct PDF downloads |
-| **Legal Assistant** | `/legal-assistant` | Query the Indian legal knowledge base for IPC/BNS guidance, bail info, CrPC procedures |
+| **Legal Assistant** | `/legal-assistant` | 100% Offline Generative Legal Chat (powered by local Ollama), IPC ↔ BNS Cross-Mapper, and multi-charge Punishment Calculator |
 | **MO Patterns** | `/mo-patterns` | Detect recurring modus operandi across all FIR narratives |
 | **Translation** | `/translation` | Translate FIR text between Malayalam and English |
 
