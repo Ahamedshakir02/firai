@@ -4,41 +4,96 @@ Legal LLM Service (Ollama Integration)
 Local generative AI for conversational legal answers.
 Connects to an Ollama instance running on the host machine.
 100% offline and sovereign.
+
+Falls back to a structured knowledge-base response if Ollama
+is unreachable, so the Legal Assistant remains functional even
+without a running LLM.
 """
 
 import os
 import httpx
 
-# host.docker.internal resolves to the Windows host machine from inside the Docker container
-OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://host.docker.internal:11434")
+# Determine the best Ollama URL:
+#   1. Explicit OLLAMA_URL env var (highest priority)
+#   2. host.docker.internal (for Docker containers)
+#   3. localhost (for local development)
+_OLLAMA_URL_CANDIDATES = [
+    os.environ.get("OLLAMA_URL", ""),
+    "http://localhost:11434",
+    "http://127.0.0.1:11434",
+    "http://host.docker.internal:11434",
+]
+
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2")
+
+# Resolved at warmup
+_ollama_url = None
+
+
+def _detect_ollama_url() -> str:
+    """Try each candidate URL and return the first one that responds."""
+    for url in _OLLAMA_URL_CANDIDATES:
+        url = url.strip()
+        if not url:
+            continue
+        try:
+            with httpx.Client(timeout=2.0) as client:
+                response = client.get(f"{url}/api/tags")
+                if response.status_code == 200:
+                    return url
+        except Exception:
+            continue
+    return ""
+
 
 def warmup():
     """
     Check if Ollama is accessible on startup.
     Does not block if Ollama is not running yet.
     """
-    print(f"[Legal LLM] Warming up Ollama integration... Target: {OLLAMA_URL}, Model: {OLLAMA_MODEL}")
-    try:
-        with httpx.Client(timeout=3.0) as client:
-            response = client.get(f"{OLLAMA_URL}/api/tags")
-            if response.status_code == 200:
-                models = [m["name"] for m in response.json().get("models", [])]
-                print(f"[Legal LLM] Connected to Ollama. Available models: {', '.join(models)}")
-                
-                # Check if requested model exists
-                if not any(OLLAMA_MODEL in m for m in models):
-                    print(f"[Legal LLM] WARNING: Model '{OLLAMA_MODEL}' not found. You may need to run `ollama pull {OLLAMA_MODEL}` on your host machine.")
-            else:
-                print(f"[Legal LLM] Ollama is responding but returned status {response.status_code}")
-    except Exception as e:
-        print(f"[Legal LLM] Ollama not accessible yet. Will retry on first query. Error: {e}")
+    global _ollama_url
+    print(f"[Legal LLM] Warming up Ollama integration... Model: {OLLAMA_MODEL}")
+    
+    _ollama_url = _detect_ollama_url()
+    
+    if _ollama_url:
+        try:
+            with httpx.Client(timeout=3.0) as client:
+                response = client.get(f"{_ollama_url}/api/tags")
+                if response.status_code == 200:
+                    models = [m["name"] for m in response.json().get("models", [])]
+                    print(f"[Legal LLM] Connected to Ollama at {_ollama_url}. Available models: {', '.join(models)}")
+                    
+                    # Check if requested model exists
+                    if not any(OLLAMA_MODEL in m for m in models):
+                        print(f"[Legal LLM] WARNING: Model '{OLLAMA_MODEL}' not found. You may need to run `ollama pull {OLLAMA_MODEL}` on your host machine.")
+        except Exception as e:
+            print(f"[Legal LLM] Ollama detection succeeded but verification failed: {e}")
+    else:
+        print(f"[Legal LLM] Ollama not accessible on any candidate URL. Legal Assistant will use knowledge-base fallback.")
+        print(f"[Legal LLM] To enable generative answers, start Ollama and ensure model '{OLLAMA_MODEL}' is pulled.")
+
 
 def is_ready():
-    # Ollama is an external service, we assume it's ready and handle failures during the request
-    return True
+    """Check if Ollama is likely available."""
+    return bool(_ollama_url)
+
 
 def generate_answer(question: str, context: str) -> str:
+    """
+    Generate a conversational legal answer using Ollama.
+    Falls back to a structured knowledge-base summary if Ollama is unavailable.
+    """
+    global _ollama_url
+    
+    # If no URL was found during warmup, try again (Ollama may have started later)
+    if not _ollama_url:
+        _ollama_url = _detect_ollama_url()
+    
+    # If still no URL, return a structured fallback from the context
+    if not _ollama_url:
+        return _fallback_answer(question, context)
+    
     system_prompt = (
         "You are an expert AI Legal Assistant for the Kerala Police. "
         "Your task is to answer legal questions accurately based ONLY on the provided context. "
@@ -51,7 +106,7 @@ def generate_answer(question: str, context: str) -> str:
     try:
         with httpx.Client(timeout=60.0) as client:
             response = client.post(
-                f"{OLLAMA_URL}/api/generate",
+                f"{_ollama_url}/api/generate",
                 json={
                     "model": OLLAMA_MODEL,
                     "prompt": prompt,
@@ -66,16 +121,61 @@ def generate_answer(question: str, context: str) -> str:
                 data = response.json()
                 return data.get("response", "No response generated.")
             else:
-                print(f"[Legal LLM] Ollama API Error: {response.text}")
-                return "I'm having trouble communicating with the local Ollama brain. Please ensure Ollama is running on your host machine."
+                print(f"[Legal LLM] Ollama API Error ({response.status_code}): {response.text[:200]}")
+                return _fallback_answer(question, context)
                 
     except httpx.ConnectError:
-        return (
-            "Cannot connect to the local AI engine. "
-            f"Please ensure Ollama is running on your host machine and the model `{OLLAMA_MODEL}` is downloaded."
-        )
+        # Ollama went offline — clear the cached URL so we re-detect next time
+        _ollama_url = None
+        return _fallback_answer(question, context)
     except httpx.ReadTimeout:
-        return "The local AI engine is taking too long to respond. It might be overloaded or still loading the model into memory."
+        return (
+            "⏳ The local AI engine is taking too long to respond. "
+            "Here is the relevant information from the knowledge base:\n\n"
+            + _format_context_as_answer(context)
+        )
     except Exception as e:
         print(f"[Legal LLM] Generation error: {e}")
-        return "I encountered an error while generating a response. Please check the backend logs."
+        return _fallback_answer(question, context)
+
+
+def _fallback_answer(question: str, context: str) -> str:
+    """
+    Generate a structured answer from the knowledge-base context
+    when Ollama is not available. This ensures the Legal Assistant
+    always returns useful information.
+    """
+    if not context or context == "No specific legal sections found for this query.":
+        return (
+            "I couldn't find specific legal sections for your query in the knowledge base. "
+            "Try searching for a specific IPC/BNS section number (e.g., 'IPC 302') or "
+            "a crime type (e.g., 'theft', 'assault').\n\n"
+            "💡 **Tip:** The generative AI (Ollama) is not currently running. "
+            "Start Ollama with the `llama3.2` model for more detailed conversational answers."
+        )
+    
+    answer = _format_context_as_answer(context)
+    answer += (
+        "\n\n---\n"
+        "ℹ️ *This answer is based on the built-in legal knowledge base. "
+        "For more detailed conversational analysis, ensure Ollama is running.*"
+    )
+    return answer
+
+
+def _format_context_as_answer(context: str) -> str:
+    """Format raw context string into a readable answer."""
+    # The context is already well-formatted from firai_engine.py
+    # Just clean it up slightly for direct display
+    lines = context.strip().split("\n")
+    formatted = []
+    for line in lines:
+        line = line.strip()
+        if not line:
+            formatted.append("")
+        elif line.startswith("FIR Narrative Context:"):
+            continue  # Skip the raw narrative context header
+        else:
+            formatted.append(line)
+    
+    return "\n".join(formatted).strip()

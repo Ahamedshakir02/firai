@@ -82,6 +82,40 @@ export default function CaseIntelligence() {
     }
   };
 
+  // Crime types from actual classifier output
+  const CRIME_TYPES = [
+    { value: 'abetment_of_suicide', label: 'Abetment of Suicide' },
+    { value: 'assault', label: 'Assault' },
+    { value: 'cheating', label: 'Cheating' },
+    { value: 'criminal_intimidation', label: 'Criminal Intimidation' },
+    { value: 'cyber_crime', label: 'Cyber Crime' },
+    { value: 'dacoity', label: 'Dacoity' },
+    { value: 'domestic_violence', label: 'Domestic Violence' },
+    { value: 'drug_offense', label: 'Drug Offense' },
+    { value: 'drunk_driving', label: 'Drunk Driving' },
+    { value: 'forgery', label: 'Forgery' },
+    { value: 'kidnapping', label: 'Kidnapping' },
+    { value: 'murder', label: 'Murder' },
+    { value: 'property_damage', label: 'Property Damage' },
+    { value: 'rash_driving', label: 'Rash Driving' },
+    { value: 'robbery', label: 'Robbery' },
+    { value: 'sexual_offense', label: 'Sexual Offense' },
+    { value: 'theft', label: 'Theft' },
+    { value: 'trespass', label: 'Trespass' },
+    { value: 'unnatural_death', label: 'Unnatural Death' },
+    { value: 'other', label: 'Other' },
+  ];
+
+  // Police stations extracted from actual FIR PDFs
+  const POLICE_STATIONS = [
+    'AMBALAPUZHA', 'CHALISSERRY', 'CHERPULASSERRY', 'CHITTOOR', 'CYBER',
+    'EDAKKARA', 'ELOOR', 'ERAVIPURAM', 'ERNAKULAM', 'FEROKE', 'FORT',
+    'KALAMASSERRY', 'KALIYAR', 'KALPAKANCHERRY', 'KANNUR', 'KASARGODE',
+    'KATTAPPANA', 'KAZHAKUTTAM', 'KENICHIRA', 'KOTTAKKAL', 'MALAPPURAM',
+    'MAVOOR', 'MEDICAL', 'NILAMBUR', 'PINARAYI', 'POOJAPPURA',
+    'PULIKEEZHU', 'THRITHALA', 'TIRUR', 'WADAKKANCHERRY',
+  ];
+
   return (
     <>
       <h1 className="page-title">Case Intelligence</h1>
@@ -89,8 +123,8 @@ export default function CaseIntelligence() {
 
       {/* Search & Filter */}
       <div className="card" style={{ marginBottom: 24, padding: 16 }}>
-        <form onSubmit={handleSearch} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <div className="header-search" style={{ flex: 1 }}>
+        <form onSubmit={handleSearch} style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="header-search" style={{ flex: 1, minWidth: 200 }}>
             <Search size={16} color="var(--text-muted)" />
             <input
               type="text"
@@ -106,28 +140,9 @@ export default function CaseIntelligence() {
             onChange={(e) => { setFilterType(e.target.value); setLoading(true); setTimeout(loadFIRs, 100); }}
           >
             <option value="">All Crime Types</option>
-            <option value="assault">Assault</option>
-            <option value="theft">Theft</option>
-            <option value="cheating">Cheating</option>
-            <option value="trespass">Trespass</option>
-            <option value="murder">Murder</option>
-            <option value="drunk_driving">Drunk Driving</option>
-            <option value="road_accident">Road Accident</option>
-            <option value="forgery">Forgery</option>
-            <option value="excise_offense">Excise Offense</option>
-            <option value="criminal_intimidation">Criminal Intimidation</option>
-            <option value="unnatural_death">Unnatural Death</option>
-            <option value="illegal_mining">Illegal Mining</option>
-            <option value="missing_person">Missing Person</option>
-            <option value="robbery">Robbery</option>
-            <option value="kidnapping">Kidnapping</option>
-            <option value="sexual_offense">Sexual Offense</option>
-            <option value="cyber_crime">Cyber Crime</option>
-            <option value="drug_offense">Drug Offense</option>
-            <option value="domestic_violence">Domestic Violence</option>
-            <option value="property_damage">Property Damage</option>
-            <option value="fraud">Fraud</option>
-            <option value="other">Other</option>
+            {CRIME_TYPES.map((ct) => (
+              <option key={ct.value} value={ct.value}>{ct.label}</option>
+            ))}
           </select>
           <select
             className="form-select"
@@ -136,18 +151,11 @@ export default function CaseIntelligence() {
             onChange={(e) => { setPoliceStation(e.target.value); setLoading(true); setTimeout(loadFIRs, 100); }}
           >
             <option value="">All Stations</option>
-            <option value="POOJAPPURA">Poojappura</option>
-            <option value="KATTAPPANA">Kattappana</option>
-            <option value="TIRUR">Tirur</option>
-            <option value="KAZHAKUTTAM">Kazhakuttam</option>
-            <option value="THAMPANOOR">Thampanoor</option>
-            <option value="MUSEUM">Museum</option>
-            <option value="MEDICAL COLLEGE">Medical College</option>
-            <option value="PALLIKKAL">Pallikkal</option>
-            <option value="NEDUMANGAD">Nedumangad</option>
-            <option value="CHITTOOR">Chittoor</option>
-            <option value="PALAKKAD TOWN">Palakkad Town</option>
-            <option value="KOZHIKODE TOWN">Kozhikode Town</option>
+            {POLICE_STATIONS.map((ps) => (
+              <option key={ps} value={ps}>
+                {ps.charAt(0) + ps.slice(1).toLowerCase().replace(/(^|\s)\w/g, (c) => c.toUpperCase())}
+              </option>
+            ))}
           </select>
           <button type="submit" className="btn btn-primary">
             <Filter size={16} /> Filter
@@ -197,8 +205,8 @@ export default function CaseIntelligence() {
                     {fir.fir_date && (
                       <span><Calendar size={12} /> {fir.fir_date}</span>
                     )}
-                    {fir.place && (
-                      <span><MapPin size={12} /> {fir.place}</span>
+                    {fir.police_station && (
+                      <span><MapPin size={12} /> {fir.police_station}</span>
                     )}
                   </div>
                 </div>
@@ -238,6 +246,24 @@ export default function CaseIntelligence() {
                 <span className={`badge badge-${selectedFIR.severity || 'medium'}`}>{selectedFIR.severity || 'N/A'}</span>
               </div>
             </div>
+
+            {/* Place & Station */}
+            {(selectedFIR.place || selectedFIR.police_station) && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 18 }}>
+                {selectedFIR.police_station && (
+                  <div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Police Station</div>
+                    <span style={{ fontSize: '0.83rem', color: 'var(--text-secondary)' }}>{selectedFIR.police_station}</span>
+                  </div>
+                )}
+                {selectedFIR.place && (
+                  <div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Place</div>
+                    <span style={{ fontSize: '0.83rem', color: 'var(--text-secondary)' }}>{selectedFIR.place}</span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Narrative */}
             <div style={{ marginBottom: 18 }}>
