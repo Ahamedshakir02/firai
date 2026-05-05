@@ -28,6 +28,7 @@ OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2")
 
 # Resolved at warmup
 _ollama_url = None
+_detection_attempted = False
 
 
 def _detect_ollama_url() -> str:
@@ -37,7 +38,9 @@ def _detect_ollama_url() -> str:
         if not url:
             continue
         try:
-            with httpx.Client(timeout=2.0) as client:
+            # Use explicit connect timeout to prevent hanging on unreachable hosts
+            timeout = httpx.Timeout(3.0, connect=1.5)
+            with httpx.Client(timeout=timeout) as client:
                 response = client.get(f"{url}/api/tags")
                 if response.status_code == 200:
                     return url
@@ -51,14 +54,16 @@ def warmup():
     Check if Ollama is accessible on startup.
     Does not block if Ollama is not running yet.
     """
-    global _ollama_url
+    global _ollama_url, _detection_attempted
     print(f"[Legal LLM] Warming up Ollama integration... Model: {OLLAMA_MODEL}")
     
     _ollama_url = _detect_ollama_url()
+    _detection_attempted = True
     
     if _ollama_url:
         try:
-            with httpx.Client(timeout=3.0) as client:
+            timeout = httpx.Timeout(3.0, connect=1.5)
+            with httpx.Client(timeout=timeout) as client:
                 response = client.get(f"{_ollama_url}/api/tags")
                 if response.status_code == 200:
                     models = [m["name"] for m in response.json().get("models", [])]
@@ -84,13 +89,14 @@ def generate_answer(question: str, context: str) -> str:
     Generate a conversational legal answer using Ollama.
     Falls back to a structured knowledge-base summary if Ollama is unavailable.
     """
-    global _ollama_url
+    global _ollama_url, _detection_attempted
     
-    # If no URL was found during warmup, try again (Ollama may have started later)
-    if not _ollama_url:
+    # If no URL was found during warmup and we haven't retried yet, try once more
+    if not _ollama_url and not _detection_attempted:
         _ollama_url = _detect_ollama_url()
+        _detection_attempted = True
     
-    # If still no URL, return a structured fallback from the context
+    # If still no URL, return a structured fallback from the context immediately
     if not _ollama_url:
         return _fallback_answer(question, context)
     

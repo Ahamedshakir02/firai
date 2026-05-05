@@ -60,7 +60,19 @@ async def legal_query(
             context = fir.narrative or ""
             source_firs = [{"id": fir.id, "file_name": fir.file_name}]
 
-    response = await firai_engine.legal_query(request.question, context)
+    try:
+        response = await firai_engine.legal_query(request.question, context)
+    except Exception as e:
+        print(f"[Legal] Query error: {e}")
+        response = {
+            "answer": (
+                "I encountered an issue processing your query. "
+                "This may be because the local AI engine (Ollama) is not running.\n\n"
+                "💡 **Tip:** Start Ollama with `ollama serve` and ensure the `llama3.2` model is pulled "
+                "(`ollama pull llama3.2`) for full conversational answers."
+            ),
+            "relevant_sections": [],
+        }
 
     return LegalResponse(
         answer=response.get("answer", "No answer available"),
