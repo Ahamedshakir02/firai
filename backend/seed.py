@@ -69,8 +69,12 @@ async def seed_database():
                         except ValueError:
                             continue
 
-                # Use custom FirAI Engine for analysis
-                analysis = firai_engine._fallback_analysis(narrative)
+                # Use custom FirAI Engine for analysis (section-derived labels)
+                analysis = firai_engine._fallback_analysis(
+                    narrative,
+                    acts=data.get("acts", []),
+                    full_text=data.get("full_text", "")
+                )
 
                 # Extract FIR number and station from full_text if available
                 fir_num = None

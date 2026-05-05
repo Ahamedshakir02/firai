@@ -42,33 +42,54 @@ IPC_MAP = {
 # ── BNS Section → (crime_type, severity) ──
 BNS_MAP = {
     "100": ("murder", "critical"), "103": ("murder", "critical"),
-    "105": ("homicide", "critical"), "109": ("attempt_to_murder", "critical"),
+    "104": ("murder", "critical"),
+    "105": ("homicide", "critical"), "106": ("death_by_negligence", "critical"),
+    "108": ("abetment_of_suicide", "critical"),
+    "109": ("attempt_to_murder", "critical"),
     "115": ("assault", "high"), "115(2)": ("assault", "high"),
     "117": ("assault", "critical"),
     "118": ("assault", "high"), "118(1)": ("assault", "high"), "118(2)": ("assault", "high"),
+    "118(a)": ("assault", "high"),
+    "119": ("assault", "high"),
     "121": ("assault", "medium"),
-    "125": ("rash_driving", "high"), "125(b)": ("rash_driving", "high"),
+    "122": ("assault", "medium"),
+    "125": ("rash_driving", "high"), "125(a)": ("rash_driving", "high"), "125(b)": ("rash_driving", "high"),
     "126": ("wrongful_restraint", "low"), "126(2)": ("wrongful_confinement", "medium"),
+    "127": ("wrongful_confinement", "medium"),
+    "131": ("assault", "medium"),
     "132": ("assault", "high"),
+    "137": ("kidnapping", "critical"), "140": ("kidnapping", "critical"),
+    "151": ("criminal_intimidation", "high"),
     "189": ("public_servant_offense", "medium"), "189(2)": ("public_servant_offense", "medium"),
     "190": ("public_servant_offense", "medium"),
     "191": ("public_servant_offense", "medium"), "191(2)": ("public_servant_offense", "medium"),
+    "22": ("unnatural_death", "critical"),  # BNS 22 — acts done by several persons in furtherance of common intent (procedural, but indicates a group crime)
+    "57": ("abetment_of_suicide", "critical"),  # BNS 57 — abetment of a thing
+    "61": ("criminal_conspiracy", "high"),
+    "63": ("sexual_offense", "critical"), "64": ("sexual_offense", "critical"),
+    "65": ("sexual_offense", "critical"),
+    "74": ("sexual_offense", "high"), "75": ("sexual_offense", "high"),
+    "76": ("assault", "high"),  # BNS 76 — voluntarily causing hurt
+    "77": ("assault", "high"),
+    "78": ("assault", "critical"),  # grievous hurt
+    "85": ("domestic_violence", "high"),  # BNS 85 — cruelty by husband
     "281": ("rash_driving", "high"),
     "303": ("theft", "medium"), "303(2)": ("theft", "medium"),
     "304": ("theft", "high"),
+    "305": ("theft", "high"),  # theft by servant
     "308": ("extortion", "high"), "309": ("robbery", "high"),
     "310": ("dacoity", "critical"),
     "316": ("breach_of_trust", "medium"), "316(2)": ("breach_of_trust", "high"),
     "318": ("cheating", "medium"), "318(4)": ("cheating", "high"),
-    "324": ("property_damage", "medium"),
+    "319": ("cheating", "medium"),
+    "324": ("property_damage", "medium"), "324(2)": ("property_damage", "high"),
     "329": ("trespass", "low"), "329(3)": ("trespass", "medium"), "329(4)": ("trespass", "medium"),
     "331": ("house_breaking", "high"),
     "332": ("house_breaking", "high"), "332(0)": ("house_breaking", "high"),
     "336": ("forgery", "medium"), "338": ("forgery", "high"),
     "351": ("criminal_intimidation", "high"),
-    "63": ("sexual_offense", "critical"), "64": ("sexual_offense", "critical"),
-    "74": ("sexual_offense", "high"), "75": ("sexual_offense", "high"),
-    "3(5)": (None, None),
+    "352": ("criminal_intimidation", "medium"),
+    "3(5)": (None, None), "3": (None, None),  # general modifiers
 }
 
 # ── Special Acts ──
@@ -83,13 +104,20 @@ SPECIAL_ACT_PATTERNS = [
         "15": ("excise_offense", "medium"),
     }),
     (r"(?:NDPS)\s*Act.*?(\d+)", {
+        "4": ("drug_offense", "high"),
+        "8": ("drug_offense", "high"),
         "20": ("drug_offense", "high"),
         "21": ("drug_offense", "high"),
         "22": ("drug_offense", "high"),
+        "27": ("drug_offense", "medium"),
+        "27(b)": ("drug_offense", "medium"),
     }),
     (r"(?:POCSO).*?(\d+)", {
         "4": ("sexual_offense", "critical"),
         "6": ("sexual_offense", "critical"),
+        "8": ("sexual_offense", "critical"),
+        "10": ("sexual_offense", "critical"),
+        "12": ("sexual_offense", "high"),
     }),
     (r"PDPP\s*ACT", {
         "_any": ("property_damage", "medium"),
@@ -199,6 +227,27 @@ def derive_labels(acts_list: list, full_text: str = "") -> dict:
                         if result:
                             crime_type, severity = result
                             break
+
+            elif "NDPS" in act_upper:
+                # NDPS Act sections
+                section_num = re.match(r'(\d+)', section)
+                if section_num:
+                    ndps_map = {"4": ("drug_offense", "high"), "8": ("drug_offense", "high"),
+                                "20": ("drug_offense", "high"), "21": ("drug_offense", "high"),
+                                "22": ("drug_offense", "high"), "27": ("drug_offense", "medium")}
+                    result = ndps_map.get(section_num.group(1))
+                    if result:
+                        crime_type, severity = result
+
+            elif "POCSO" in act_upper:
+                section_num = re.match(r'(\d+)', section)
+                if section_num:
+                    pocso_map = {"4": ("sexual_offense", "critical"), "6": ("sexual_offense", "critical"),
+                                 "8": ("sexual_offense", "critical"), "10": ("sexual_offense", "critical"),
+                                 "12": ("sexual_offense", "high")}
+                    result = pocso_map.get(section_num.group(1))
+                    if result:
+                        crime_type, severity = result
 
             if crime_type:
                 found_crimes.append({"crime_type": crime_type, "severity": severity, "section": section, "act": act_name})

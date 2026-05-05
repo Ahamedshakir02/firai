@@ -186,22 +186,42 @@ def _map_legal_sections(crime_type: str) -> list:
 
 # ══════════════════ MAIN API: analyze_narrative ══════════════════
 
-async def analyze_narrative(narrative: str) -> dict:
+async def analyze_narrative(narrative: str, acts: list = None, full_text: str = "") -> dict:
     """
     Analyze an FIR narrative using custom AI models.
     Drop-in replacement for gemini_service.analyze_narrative().
+
+    When `acts` (IPC/BNS section data extracted from the PDF) is provided,
+    crime type and severity are derived deterministically from the actual
+    legal sections — this is far more accurate than the neural network.
+    The neural network classifier is used as a fallback when no section
+    data is available.
 
     Returns:
         {crime_type, severity, summary_en, ipc_sections,
          recommended_steps, key_entities}
     """
-    classifier = _get_classifier()
+    from ai_engine.data.label_generator import derive_labels
 
-    # Run classification in thread pool (non-blocking)
-    prediction = await asyncio.to_thread(classifier.predict, narrative)
+    # PRIMARY: derive labels from IPC/BNS sections (deterministic, accurate)
+    section_labels = derive_labels(acts or [], full_text)
+    section_crime = section_labels.get("crime_type")
+    section_severity = section_labels.get("severity")
 
-    crime_type = prediction["crime_type"]
-    severity = prediction["severity"]
+    if section_crime and section_crime != "other":
+        # Use section-derived labels (high confidence)
+        crime_type = section_crime
+        severity = section_severity or "medium"
+        confidence = 0.95
+        model_used = "firai-section-derived"
+    else:
+        # FALLBACK: use neural network classifier
+        classifier = _get_classifier()
+        prediction = await asyncio.to_thread(classifier.predict, narrative)
+        crime_type = prediction["crime_type"]
+        severity = prediction["severity"]
+        confidence = prediction.get("crime_confidence", 0)
+        model_used = "firai-engine-v1"
 
     # Extract entities
     entities = _extract_entities(narrative)
@@ -222,8 +242,8 @@ async def analyze_narrative(narrative: str) -> dict:
         "ipc_sections": ipc_sections,
         "recommended_steps": steps,
         "key_entities": entities,
-        "ai_confidence": prediction.get("crime_confidence", 0),
-        "model": "firai-engine-v1",
+        "ai_confidence": confidence,
+        "model": model_used,
     }
 
 
@@ -564,19 +584,32 @@ async def detect_mo_patterns(narratives: list) -> list:
 
 # ══════════════════ FALLBACK (compatibility) ══════════════════
 
-def _fallback_analysis(narrative: str) -> dict:
+def _fallback_analysis(narrative: str, acts: list = None, full_text: str = "") -> dict:
     """Synchronous fallback for compatibility with existing code."""
-    classifier = _get_classifier()
-    prediction = classifier.predict(narrative)
+    from ai_engine.data.label_generator import derive_labels
+
+    # Try section-derived labels first
+    section_labels = derive_labels(acts or [], full_text)
+    section_crime = section_labels.get("crime_type")
+
+    if section_crime and section_crime != "other":
+        crime_type = section_crime
+        severity = section_labels.get("severity", "medium")
+    else:
+        classifier = _get_classifier()
+        prediction = classifier.predict(narrative)
+        crime_type = prediction["crime_type"]
+        severity = prediction["severity"]
+
     entities = _extract_entities(narrative)
-    summary = _generate_summary(narrative, prediction["crime_type"], entities)
-    steps = get_investigation_steps(prediction["crime_type"])
+    summary = _generate_summary(narrative, crime_type, entities)
+    steps = get_investigation_steps(crime_type)
 
     return {
-        "crime_type": prediction["crime_type"],
-        "severity": prediction["severity"],
+        "crime_type": crime_type,
+        "severity": severity,
         "summary_en": summary,
-        "ipc_sections": _map_legal_sections(prediction["crime_type"]),
+        "ipc_sections": _map_legal_sections(crime_type),
         "recommended_steps": steps,
         "key_entities": entities,
         "model": "firai-engine-v1-fallback",

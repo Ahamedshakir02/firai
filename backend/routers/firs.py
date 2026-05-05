@@ -274,7 +274,12 @@ async def upload_fir_pdf(
         fir_number = processed.get("fir_number")
 
         # Analyze narrative with FirAI Engine (custom AI)
-        analysis = await firai_engine.analyze_narrative(narrative)
+        # Pass acts and full_text so classification uses IPC/BNS sections
+        analysis = await firai_engine.analyze_narrative(
+            narrative,
+            acts=processed.get("acts", []),
+            full_text=processed.get("full_text", "")
+        )
 
         # Check for duplicates
         existing = await _find_duplicate(db, fir_number=fir_number, narrative=narrative)
@@ -510,9 +515,17 @@ async def bulk_upload_firs(
 
             # Analyze narrative with FirAI Engine (custom AI)
             try:
-                analysis = await firai_engine.analyze_narrative(narrative)
+                analysis = await firai_engine.analyze_narrative(
+                    narrative,
+                    acts=processed.get("acts", []),
+                    full_text=processed.get("full_text", "")
+                )
             except Exception:
-                analysis = firai_engine._fallback_analysis(narrative)
+                analysis = firai_engine._fallback_analysis(
+                    narrative,
+                    acts=processed.get("acts", []),
+                    full_text=processed.get("full_text", "")
+                )
 
             # Generate proper FIR-based filename
             proper_filename = generate_fir_filename(
@@ -612,9 +625,17 @@ async def bulk_upload_json(
 
             # Analyze narrative with FirAI Engine (custom AI)
             try:
-                analysis = await firai_engine.analyze_narrative(narrative)
+                analysis = await firai_engine.analyze_narrative(
+                    narrative,
+                    acts=data.get("acts", []),
+                    full_text=data.get("full_text", "")
+                )
             except Exception:
-                analysis = firai_engine._fallback_analysis(narrative)
+                analysis = firai_engine._fallback_analysis(
+                    narrative,
+                    acts=data.get("acts", []),
+                    full_text=data.get("full_text", "")
+                )
 
             fir = FIR(
                 file_name=data.get("file", file.filename),
