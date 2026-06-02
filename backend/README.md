@@ -6,7 +6,7 @@
 
 ## Overview
 
-The backend provides all API endpoints for FIR management, AI analysis, legal guidance, and translation. It connects to PostgreSQL for data storage and uses a **100% custom-built AI engine** (FirAI Engine) — no external AI APIs.
+The backend provides all API endpoints for FIR management, AI analysis, legal guidance, and translation. It connects to PostgreSQL for data storage and uses a **100% custom-built AI engine** (FirAI Engine) for classification and analysis.
 
 ### Key Responsibilities
 
@@ -15,12 +15,12 @@ The backend provides all API endpoints for FIR management, AI analysis, legal gu
 - **Auto File Naming**: Uploaded PDFs are automatically renamed to `FIR_{number}_{year}_{station}.pdf`
 - **Duplicate Detection**: File-hash and FIR-number based deduplication on upload
 - **Original PDF Storage**: Saves actual PDF files mapped to FIR records with proper names
-- **AI Analysis**: Crime classification, risk scoring, IPC/BNS mapping (via custom FirAI Engine)
-- **Smart Similarity Search**: Multi-dimensional scoring (Narrative embeddings + accused matching + crime types)
+- **AI Analysis**: Section-derived crime classification (primary) + BiLSTM neural classifier (fallback)
+- **Smart Similarity Search**: Multi-dimensional scoring (narrative embeddings + accused matching + crime types)
 - **MO Detection**: Cross-narrative pattern detection using DBSCAN clustering
-- **Legal Knowledge**: Built-in IPC/BNS database, IPC ↔ BNS Cross-Mapper, Punishment Calculator, and 100% sovereign AI Q&A via local Ollama.
+- **Legal Knowledge**: Built-in IPC/BNS knowledge base, IPC ↔ BNS Cross-Mapper, Punishment Calculator, and optional Claude AI for conversational legal Q&A
 - **Translation**: Malayalam ↔ English via Bhashini API
-- **Database Seeding**: Auto-imports 90+ existing FIR JSONs and creates initial Admin users on first boot
+- **Database Seeding**: Auto-imports 90+ existing FIR JSONs and creates initial admin users on first boot
 
 ---
 
@@ -36,7 +36,8 @@ backend/
 ├── seed.py                 # Seeds existing FIRs into PostgreSQL (auto-names)
 ├── seed_officers.py        # Seeds demo officer accounts
 │
-├── scripts/                # 🔧 Data Management Utilities
+├── scripts/                # Data Management Utilities
+│   ├── extract_rules.py    # Extract IPC/BNS sections from law PDFs
 │   ├── rename_firs.py      # Rename existing JSONs/PDFs to FIR_XXXX_YYYY_STATION
 │   └── reprocess_all_firs.py  # Wipe & re-OCR all PDFs (dedup + auto-name)
 │
@@ -69,7 +70,8 @@ backend/
 │   │   ├── legal_corpus.py      # Indian law text (IPC, BNS, CrPC)
 │   │   └── datasets/            # Generated training data
 │   ├── models/
-│   │   └── classifier.py        # BiLSTM neural network architecture
+│   │   ├── classifier.py        # BiLSTM neural network architecture
+│   │   └── legal_llm.py         # Claude API integration + KB fallback
 │   ├── inference/               # Model loading & prediction
 │   └── trained_models/          # Saved model weights
 │       ├── classifier.pt        # Trained neural network (3.3 MB)

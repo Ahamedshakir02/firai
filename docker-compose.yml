@@ -30,8 +30,8 @@ services:
       - BHASHINI_API_KEY=${BHASHINI_API_KEY:-}
       - BHASHINI_USER_ID=${BHASHINI_USER_ID:-}
       - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY:-}
-      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-haiku-4-5-20251001}
     volumes:
       - ./backend:/app
     restart: unless-stopped

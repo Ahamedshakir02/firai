@@ -63,8 +63,6 @@ BNS_MAP = {
     "189": ("public_servant_offense", "medium"), "189(2)": ("public_servant_offense", "medium"),
     "190": ("public_servant_offense", "medium"),
     "191": ("public_servant_offense", "medium"), "191(2)": ("public_servant_offense", "medium"),
-    "22": ("unnatural_death", "critical"),  # BNS 22 — acts done by several persons in furtherance of common intent (procedural, but indicates a group crime)
-    "57": ("abetment_of_suicide", "critical"),  # BNS 57 — abetment of a thing
     "61": ("criminal_conspiracy", "high"),
     "63": ("sexual_offense", "critical"), "64": ("sexual_offense", "critical"),
     "65": ("sexual_offense", "critical"),
@@ -92,18 +90,18 @@ BNS_MAP = {
     "3(5)": (None, None), "3": (None, None),  # general modifiers
 }
 
-# ── Special Acts ──
-SPECIAL_ACT_PATTERNS = [
-    (r"(?:Motor Vehicle|MV)\s*Act.*?(\d+)", {
-        "185": ("drunk_driving", "high"),
+# ── Special Acts — keyed by act name fragment ──
+_SPECIAL_ACT_SECTION_MAPS = {
+    "MV": {
         "184": ("rash_driving", "high"),
+        "185": ("drunk_driving", "high"),
         "485": ("drunk_driving", "high"),
-    }),
-    (r"(?:Abkari|ABKARI|Kerala Abkari)\s*Act.*?(\d+)", {
-        "55": ("excise_offense", "medium"),
+    },
+    "ABKARI": {
         "15": ("excise_offense", "medium"),
-    }),
-    (r"(?:NDPS)\s*Act.*?(\d+)", {
+        "55": ("excise_offense", "medium"),
+    },
+    "NDPS": {
         "4": ("drug_offense", "high"),
         "8": ("drug_offense", "high"),
         "20": ("drug_offense", "high"),
@@ -111,18 +109,41 @@ SPECIAL_ACT_PATTERNS = [
         "22": ("drug_offense", "high"),
         "27": ("drug_offense", "medium"),
         "27(b)": ("drug_offense", "medium"),
-    }),
-    (r"(?:POCSO).*?(\d+)", {
+    },
+    "POCSO": {
         "4": ("sexual_offense", "critical"),
         "6": ("sexual_offense", "critical"),
         "8": ("sexual_offense", "critical"),
         "10": ("sexual_offense", "critical"),
         "12": ("sexual_offense", "high"),
-    }),
-    (r"PDPP\s*ACT", {
+    },
+    "PDPP": {
         "_any": ("property_damage", "medium"),
-    }),
+    },
+}
+
+# Legacy alias used by full-text regex extraction path
+SPECIAL_ACT_PATTERNS = [
+    (r"(?:Motor Vehicle|MV)\s*Act.*?(\d+)", _SPECIAL_ACT_SECTION_MAPS["MV"]),
+    (r"(?:Abkari|ABKARI|Kerala Abkari)\s*Act.*?(\d+)", _SPECIAL_ACT_SECTION_MAPS["ABKARI"]),
+    (r"(?:NDPS)\s*Act.*?(\d+)", _SPECIAL_ACT_SECTION_MAPS["NDPS"]),
+    (r"(?:POCSO).*?(\d+)", _SPECIAL_ACT_SECTION_MAPS["POCSO"]),
+    (r"PDPP\s*ACT", _SPECIAL_ACT_SECTION_MAPS["PDPP"]),
 ]
+
+
+def _get_special_act_map(act_upper: str) -> dict:
+    if "NDPS" in act_upper:
+        return _SPECIAL_ACT_SECTION_MAPS["NDPS"]
+    if "POCSO" in act_upper:
+        return _SPECIAL_ACT_SECTION_MAPS["POCSO"]
+    if "ABKARI" in act_upper:
+        return _SPECIAL_ACT_SECTION_MAPS["ABKARI"]
+    if "MV" in act_upper or "MOTOR" in act_upper:
+        return _SPECIAL_ACT_SECTION_MAPS["MV"]
+    if "PDPP" in act_upper:
+        return _SPECIAL_ACT_SECTION_MAPS["PDPP"]
+    return {}
 
 # ── BNSS (procedural code) sections — not crimes, but indicate case type ──
 BNSS_INDICATOR = {
@@ -210,44 +231,19 @@ def derive_labels(acts_list: list, full_text: str = "") -> dict:
             elif "BNSS" in act_upper:
                 crime_type, severity = BNSS_INDICATOR.get(section, (None, None))
 
-            elif "ABKARI" in act_upper:
-                section_num = re.match(r'(\d+)', section)
-                if section_num:
-                    for _, sec_map in SPECIAL_ACT_PATTERNS:
-                        result = sec_map.get(section_num.group(1))
+            else:
+                sec_map = _get_special_act_map(act_upper)
+                if sec_map:
+                    if "_any" in sec_map:
+                        crime_type, severity = sec_map["_any"]
+                    else:
+                        result = sec_map.get(section)
+                        if result is None:
+                            base = re.match(r'(\d+)', section)
+                            if base:
+                                result = sec_map.get(base.group(1))
                         if result:
                             crime_type, severity = result
-                            break
-
-            elif "MV" in act_upper or "MOTOR" in act_upper:
-                section_num = re.match(r'(\d+)', section)
-                if section_num:
-                    for _, sec_map in SPECIAL_ACT_PATTERNS:
-                        result = sec_map.get(section_num.group(1))
-                        if result:
-                            crime_type, severity = result
-                            break
-
-            elif "NDPS" in act_upper:
-                # NDPS Act sections
-                section_num = re.match(r'(\d+)', section)
-                if section_num:
-                    ndps_map = {"4": ("drug_offense", "high"), "8": ("drug_offense", "high"),
-                                "20": ("drug_offense", "high"), "21": ("drug_offense", "high"),
-                                "22": ("drug_offense", "high"), "27": ("drug_offense", "medium")}
-                    result = ndps_map.get(section_num.group(1))
-                    if result:
-                        crime_type, severity = result
-
-            elif "POCSO" in act_upper:
-                section_num = re.match(r'(\d+)', section)
-                if section_num:
-                    pocso_map = {"4": ("sexual_offense", "critical"), "6": ("sexual_offense", "critical"),
-                                 "8": ("sexual_offense", "critical"), "10": ("sexual_offense", "critical"),
-                                 "12": ("sexual_offense", "high")}
-                    result = pocso_map.get(section_num.group(1))
-                    if result:
-                        crime_type, severity = result
 
             if crime_type:
                 found_crimes.append({"crime_type": crime_type, "severity": severity, "section": section, "act": act_name})

@@ -20,7 +20,7 @@ const navItems = [
   ]},
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen = false, onNavClick = () => {} }) {
   const { officer, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -30,7 +30,7 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${isOpen ? ' sidebar-open' : ''}`}>
       <div className="sidebar-logo">
         <div className="logo-icon">
           <Shield size={22} />
@@ -53,6 +53,7 @@ export default function Sidebar() {
                   `sidebar-link ${isActive ? 'active' : ''}`
                 }
                 end={item.to === '/'}
+                onClick={onNavClick}
               >
                 <item.icon className="link-icon" size={20} />
                 {item.text}
@@ -73,6 +74,7 @@ export default function Sidebar() {
             to="/profile"
             className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
             style={{ marginBottom: 8 }}
+            onClick={onNavClick}
           >
             <User className="link-icon" size={20} />
             Profile

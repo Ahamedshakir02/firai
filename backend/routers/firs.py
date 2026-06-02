@@ -74,7 +74,7 @@ async def list_firs(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     crime_type: Optional[str] = None,
-    police_station: Optional[str] = None,
+    police_station: Optional[str] = Query(None, max_length=100),
     severity: Optional[str] = None,
     search: Optional[str] = None,
     db: AsyncSession = Depends(get_db)

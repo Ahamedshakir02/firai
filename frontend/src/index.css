@@ -875,19 +875,71 @@ a:hover { color: var(--accent-blue-light); }
   transition: width var(--transition-slow);
 }
 
+/* ═══════════════════════ Case Intelligence Grid ═══════════════════════ */
+
+.ci-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+
+.ci-grid--split {
+  grid-template-columns: 1fr 1fr;
+}
+
 /* ═══════════════════════ Responsive ═══════════════════════ */
+
+.mobile-menu-btn { display: none; }
 
 @media (max-width: 1200px) {
   .grid-3 { grid-template-columns: repeat(2, 1fr); }
 }
 
+@media (max-width: 900px) {
+  .ci-grid--split { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 768px) {
   :root { --sidebar-width: 0px; }
-  .sidebar { display: none; }
+
+  /* Sidebar becomes a slide-in drawer */
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform var(--transition-normal);
+    z-index: 110;
+  }
+  .sidebar.sidebar-open { transform: translateX(0); }
+
+  /* Overlay behind open sidebar */
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 105;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
+
+  .mobile-menu-btn { display: flex; }
+  .header { left: 0; padding: 0 16px; }
+  .header-search { display: none; }
+
   .page-container { padding: 20px 16px; }
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
-  .header { left: 0; padding: 0 16px; }
+  .ci-grid--split { grid-template-columns: 1fr; }
+
+  /* Legal assistant chat stacks below reference panel */
+  .chat-container {
+    height: 480px;
+    max-height: 480px;
+  }
+}
+
+@media (max-width: 480px) {
+  .stat-grid { grid-template-columns: 1fr; }
+  .page-title { font-size: 1.25rem; }
+  .btn { padding: 8px 14px; font-size: 0.82rem; }
 }
 
 /* ═══════════════════════ Scrollbar ═══════════════════════ */

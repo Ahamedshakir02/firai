@@ -1,4 +1,4 @@
-import { Search, Bell } from 'lucide-react';
+import { Search, Bell, Menu } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
 const pageTitles = {
@@ -10,13 +10,23 @@ const pageTitles = {
   '/translation': 'Translation',
 };
 
-export default function Header() {
+export default function Header({ onMenuToggle }) {
   const { pathname } = useLocation();
   const title = pageTitles[pathname] || 'FirAI';
 
   return (
     <header className="header">
-      <h2 className="header-title">{title}</h2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <button
+          className="btn btn-ghost mobile-menu-btn"
+          onClick={onMenuToggle}
+          style={{ padding: '8px' }}
+          aria-label="Toggle navigation"
+        >
+          <Menu size={20} />
+        </button>
+        <h2 className="header-title">{title}</h2>
+      </div>
       <div className="header-actions">
         <div className="header-search">
           <Search size={16} color="var(--text-muted)" />

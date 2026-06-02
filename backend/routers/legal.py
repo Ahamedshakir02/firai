@@ -67,9 +67,8 @@ async def legal_query(
         response = {
             "answer": (
                 "I encountered an issue processing your query. "
-                "This may be because the local AI engine (Ollama) is not running.\n\n"
-                "💡 **Tip:** Start Ollama with `ollama serve` and ensure the `llama3.2` model is pulled "
-                "(`ollama pull llama3.2`) for full conversational answers."
+                "The knowledge base will be used for this response.\n\n"
+                "**Tip:** Ensure ANTHROPIC_API_KEY is set in your .env file for full AI-powered answers."
             ),
             "relevant_sections": [],
         }

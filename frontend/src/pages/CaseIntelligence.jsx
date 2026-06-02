@@ -1,6 +1,38 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { firAPI } from '../api/client';
 import { Search, Filter, Eye, Calendar, MapPin, ChevronRight, X, Download } from 'lucide-react';
+
+const CRIME_TYPES = [
+  { value: 'abetment_of_suicide', label: 'Abetment of Suicide' },
+  { value: 'assault', label: 'Assault' },
+  { value: 'cheating', label: 'Cheating' },
+  { value: 'criminal_intimidation', label: 'Criminal Intimidation' },
+  { value: 'cyber_crime', label: 'Cyber Crime' },
+  { value: 'dacoity', label: 'Dacoity' },
+  { value: 'domestic_violence', label: 'Domestic Violence' },
+  { value: 'drug_offense', label: 'Drug Offense' },
+  { value: 'drunk_driving', label: 'Drunk Driving' },
+  { value: 'forgery', label: 'Forgery' },
+  { value: 'kidnapping', label: 'Kidnapping' },
+  { value: 'murder', label: 'Murder' },
+  { value: 'property_damage', label: 'Property Damage' },
+  { value: 'rash_driving', label: 'Rash Driving' },
+  { value: 'robbery', label: 'Robbery' },
+  { value: 'sexual_offense', label: 'Sexual Offense' },
+  { value: 'theft', label: 'Theft' },
+  { value: 'trespass', label: 'Trespass' },
+  { value: 'unnatural_death', label: 'Unnatural Death' },
+  { value: 'other', label: 'Other' },
+];
+
+const POLICE_STATIONS = [
+  'AMBALAPUZHA', 'CHALISSERRY', 'CHERPULASSERRY', 'CHITTOOR', 'CYBER',
+  'EDAKKARA', 'ELOOR', 'ERAVIPURAM', 'ERNAKULAM', 'FEROKE', 'FORT',
+  'KALAMASSERRY', 'KALIYAR', 'KALPAKANCHERRY', 'KANNUR', 'KASARGODE',
+  'KATTAPPANA', 'KAZHAKUTTAM', 'KENICHIRA', 'KOTTAKKAL', 'MALAPPURAM',
+  'MAVOOR', 'MEDICAL', 'NILAMBUR', 'PINARAYI', 'POOJAPPURA',
+  'PULIKEEZHU', 'THRITHALA', 'TIRUR', 'WADAKKANCHERRY',
+];
 
 export default function CaseIntelligence() {
   const [firs, setFirs] = useState([]);
@@ -12,7 +44,12 @@ export default function CaseIntelligence() {
   const [filterType, setFilterType] = useState('');
   const [policeStation, setPoliceStation] = useState('');
 
-  useEffect(() => { loadFIRs(); }, []);
+  useEffect(() => { loadFIRs(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    setLoading(true);
+    loadFIRs();
+  }, [filterType, policeStation]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadFIRs = async () => {
     try {
@@ -82,40 +119,6 @@ export default function CaseIntelligence() {
     }
   };
 
-  // Crime types from actual classifier output
-  const CRIME_TYPES = [
-    { value: 'abetment_of_suicide', label: 'Abetment of Suicide' },
-    { value: 'assault', label: 'Assault' },
-    { value: 'cheating', label: 'Cheating' },
-    { value: 'criminal_intimidation', label: 'Criminal Intimidation' },
-    { value: 'cyber_crime', label: 'Cyber Crime' },
-    { value: 'dacoity', label: 'Dacoity' },
-    { value: 'domestic_violence', label: 'Domestic Violence' },
-    { value: 'drug_offense', label: 'Drug Offense' },
-    { value: 'drunk_driving', label: 'Drunk Driving' },
-    { value: 'forgery', label: 'Forgery' },
-    { value: 'kidnapping', label: 'Kidnapping' },
-    { value: 'murder', label: 'Murder' },
-    { value: 'property_damage', label: 'Property Damage' },
-    { value: 'rash_driving', label: 'Rash Driving' },
-    { value: 'robbery', label: 'Robbery' },
-    { value: 'sexual_offense', label: 'Sexual Offense' },
-    { value: 'theft', label: 'Theft' },
-    { value: 'trespass', label: 'Trespass' },
-    { value: 'unnatural_death', label: 'Unnatural Death' },
-    { value: 'other', label: 'Other' },
-  ];
-
-  // Police stations extracted from actual FIR PDFs
-  const POLICE_STATIONS = [
-    'AMBALAPUZHA', 'CHALISSERRY', 'CHERPULASSERRY', 'CHITTOOR', 'CYBER',
-    'EDAKKARA', 'ELOOR', 'ERAVIPURAM', 'ERNAKULAM', 'FEROKE', 'FORT',
-    'KALAMASSERRY', 'KALIYAR', 'KALPAKANCHERRY', 'KANNUR', 'KASARGODE',
-    'KATTAPPANA', 'KAZHAKUTTAM', 'KENICHIRA', 'KOTTAKKAL', 'MALAPPURAM',
-    'MAVOOR', 'MEDICAL', 'NILAMBUR', 'PINARAYI', 'POOJAPPURA',
-    'PULIKEEZHU', 'THRITHALA', 'TIRUR', 'WADAKKANCHERRY',
-  ];
-
   return (
     <>
       <h1 className="page-title">Case Intelligence</h1>
@@ -137,7 +140,7 @@ export default function CaseIntelligence() {
             className="form-select"
             style={{ width: 180 }}
             value={filterType}
-            onChange={(e) => { setFilterType(e.target.value); setLoading(true); setTimeout(loadFIRs, 100); }}
+            onChange={(e) => setFilterType(e.target.value)}
           >
             <option value="">All Crime Types</option>
             {CRIME_TYPES.map((ct) => (
@@ -148,7 +151,7 @@ export default function CaseIntelligence() {
             className="form-select"
             style={{ width: 180 }}
             value={policeStation}
-            onChange={(e) => { setPoliceStation(e.target.value); setLoading(true); setTimeout(loadFIRs, 100); }}
+            onChange={(e) => setPoliceStation(e.target.value)}
           >
             <option value="">All Stations</option>
             {POLICE_STATIONS.map((ps) => (
@@ -166,7 +169,7 @@ export default function CaseIntelligence() {
         </form>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: selectedFIR ? '1fr 1fr' : '1fr', gap: 24 }}>
+      <div className={`ci-grid${selectedFIR ? ' ci-grid--split' : ''}`}>
         {/* FIR List */}
         <div>
           {loading ? (

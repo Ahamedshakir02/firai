@@ -630,21 +630,30 @@ def _load_extracted_rules():
     except Exception as e:
         print(f"[Legal Corpus] Error loading extracted rules: {e}")
 
-# Load the dynamic rules immediately
-_load_extracted_rules()
+_corpus_loaded = False
+
+
+def _ensure_loaded():
+    global _corpus_loaded
+    if not _corpus_loaded:
+        _load_extracted_rules()
+        _corpus_loaded = True
+
 
 def get_corpus():
     """Return the full legal corpus."""
+    _ensure_loaded()
     return LEGAL_CORPUS
+
 
 def get_sections_by_crime(crime_type: str) -> list:
     """Get all legal sections related to a crime type."""
-    return [s for s in LEGAL_CORPUS if s.get("crime_type") == crime_type]
+    return [s for s in get_corpus() if s.get("crime_type") == crime_type]
 
 
 def get_section(act: str, section: str) -> dict:
     """Look up a specific section."""
-    for s in LEGAL_CORPUS:
+    for s in get_corpus():
         if s["act"].upper() in act.upper() and s["section"] == section:
             return s
     return {}
