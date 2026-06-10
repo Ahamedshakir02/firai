@@ -59,7 +59,7 @@ frontend/
         ├── Dashboard.jsx         # Crime stats, charts, recent FIRs
         ├── FIRAnalyzer.jsx       # Upload/paste/bulk → AI analysis
         ├── CaseIntelligence.jsx  # Browse, search, similar cases, PDF download
-        ├── LegalAssistant.jsx    # Local Ollama AI Q&A + IPC ↔ BNS Mapper + Punishment Calculator
+        ├── LegalAssistant.jsx    # Claude API / KB legal Q&A + IPC ↔ BNS Mapper + Punishment Calculator
         ├── MOPatterns.jsx        # MO pattern detection & alerts
         ├── Translation.jsx       # Malayalam ↔ English translation
         ├── Login.jsx             # JWT Authentication & Registration
@@ -84,8 +84,8 @@ frontend/
 ### 2. FIR Analyzer (`/fir-analyzer`)
 Three input modes:
 - **Paste Narrative**: Enter Malayalam or English text → AI analysis
-- **Upload PDF**: OCR extraction → narrative → analysis
-- **Bulk Upload**: Multiple PDFs or JSONs → batch process into database
+- **Upload PDF / Image**: OCR extraction from a PDF or scanned image (PNG/JPG/TIFF) → narrative → analysis
+- **Bulk Upload**: Multiple PDFs, images, or JSONs → batch process into database
 
 Results panel shows:
 - Crime type, severity, risk score (1–10)
@@ -202,4 +202,16 @@ server: {
     }
   }
 }
+```
+
+---
+
+## Program & License
+
+Part of **FirAI**, developed for the **Kerala AI Mission (K-AI)** under **Kerala Startup Mission (KSUM)** — a premium dashboard delivering AI-powered FIR analysis and case intelligence to Kerala Police officers.
+
+Licensed under the **MIT License**. See the [root LICENSE](../LICENSE) file for full terms.
+
+```
+Copyright (c) 2026 Ahamed Shakir — FirAI Project Contributors
 ```
