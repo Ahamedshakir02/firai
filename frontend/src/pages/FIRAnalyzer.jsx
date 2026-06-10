@@ -55,10 +55,11 @@ export default function FIRAnalyzer() {
     setError('');
     setBulkResult(null);
     try {
-      const isPDF = files[0].name.endsWith('.pdf');
-      const { data } = isPDF
-        ? await firAPI.bulkUploadPDF(files)
-        : await firAPI.bulkUploadJSON(files);
+      // JSON files import pre-processed data; PDFs and images are OCR'd via the binary endpoint.
+      const isJSON = files[0].name.toLowerCase().endsWith('.json');
+      const { data } = isJSON
+        ? await firAPI.bulkUploadJSON(files)
+        : await firAPI.bulkUploadPDF(files);
       setBulkResult(data);
     } catch (err) {
       setError(err.response?.data?.detail || 'Bulk upload failed');
@@ -97,7 +98,7 @@ export default function FIRAnalyzer() {
           Paste Narrative
         </button>
         <button className={`tab ${mode === 'pdf' ? 'active' : ''}`} onClick={() => setMode('pdf')}>
-          Upload PDF
+          Upload PDF / Image
         </button>
         <button className={`tab ${mode === 'bulk' ? 'active' : ''}`} onClick={() => setMode('bulk')}>
           Bulk Upload
@@ -110,7 +111,7 @@ export default function FIRAnalyzer() {
           <div className="card-header">
             <div className="card-title">
               {mode === 'text' && 'Enter FIR Narrative'}
-              {mode === 'pdf' && 'Upload FIR PDF'}
+              {mode === 'pdf' && 'Upload FIR PDF / Image'}
               {mode === 'bulk' && 'Bulk Upload Previous FIRs'}
             </div>
           </div>
@@ -144,12 +145,12 @@ export default function FIRAnalyzer() {
               onClick={() => fileInputRef.current?.click()}
             >
               <Upload className="upload-icon" size={48} />
-              <div className="upload-text">Click to upload FIR PDF</div>
-              <div className="upload-hint">The narrative will be extracted via OCR and analyzed</div>
+              <div className="upload-text">Click to upload FIR PDF or image</div>
+              <div className="upload-hint">PDF or scanned image (PNG, JPG, TIFF) — the narrative is extracted via OCR and analyzed</div>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".pdf"
+                accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.bmp,.webp"
                 onChange={uploadPDF}
                 style={{ display: 'none' }}
               />
@@ -166,14 +167,14 @@ export default function FIRAnalyzer() {
                 <FolderUp className="upload-icon" size={48} />
                 <div className="upload-text">Upload multiple FIR files</div>
                 <div className="upload-hint">
-                  Accepts PDF files or pre-processed JSON files.
+                  Accepts PDF, image (PNG/JPG/TIFF) or pre-processed JSON files.
                   <br />All files will be processed, analyzed, and stored in the database.
                   <br /><strong>Duplicates are automatically detected and skipped.</strong>
                 </div>
                 <input
                   ref={bulkInputRef}
                   type="file"
-                  accept=".pdf,.json"
+                  accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.bmp,.webp,.json"
                   multiple
                   onChange={bulkUpload}
                   style={{ display: 'none' }}

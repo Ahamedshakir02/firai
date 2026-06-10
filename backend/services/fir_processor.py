@@ -18,6 +18,13 @@ from PIL import Image
 from typing import Optional
 
 
+# Image formats accepted for direct OCR (scanned FIRs uploaded as pictures).
+IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp")
+
+# Tesseract config shared by PDF-page and standalone-image OCR.
+_OCR_CONFIG = "--oem 3 --psm 6"
+
+
 def extract_text_from_pdf(pdf_path: str) -> str:
     """Extract text from FIR PDF using OCR (supports Malayalam + English)."""
     doc = fitz.open(pdf_path)
@@ -29,15 +36,36 @@ def extract_text_from_pdf(pdf_path: str) -> str:
         pix = page.get_pixmap(dpi=200)
         img = Image.open(io.BytesIO(pix.tobytes("png")))
 
-        text = pytesseract.image_to_string(
-            img,
-            lang="mal+eng",
-            config="--oem 3 --psm 6"
-        )
+        text = pytesseract.image_to_string(img, lang="mal+eng", config=_OCR_CONFIG)
         full_text += text + "\n"
 
     doc.close()
     return full_text
+
+
+def extract_text_from_image(image_path: str) -> str:
+    """Extract text from a scanned FIR image (PNG/JPG/TIFF) using OCR.
+
+    Supports Malayalam + English. Converts to RGB so formats with alpha or
+    palette modes (e.g. PNG, GIF) don't trip up Tesseract.
+    """
+    img = Image.open(image_path)
+    if img.mode not in ("RGB", "L"):
+        img = img.convert("RGB")
+    return pytesseract.image_to_string(img, lang="mal+eng", config=_OCR_CONFIG)
+
+
+def extract_text_from_document(file_path: str, filename: str = "") -> str:
+    """Extract OCR text from a FIR document, dispatching on file type.
+
+    Images go straight to Tesseract; everything else is treated as a PDF.
+    `filename` is used (when given) to determine the extension, since temp
+    files often have no meaningful suffix.
+    """
+    ext = os.path.splitext(filename or file_path)[1].lower()
+    if ext in IMAGE_EXTENSIONS:
+        return extract_text_from_image(file_path)
+    return extract_text_from_pdf(file_path)
 
 
 def clean_text(text: str) -> str:
@@ -305,23 +333,20 @@ def extract_district_and_station(text: str) -> tuple:
     return district, station
 
 
-def process_fir_pdf(pdf_path: str) -> dict:
+def _structure_fir_text(raw_text: str) -> dict:
     """
-    Complete FIR processing pipeline:
-    PDF → OCR → Clean → Extract all fields → Return structured data.
+    Shared extraction pipeline:
+    raw OCR text → Clean → Extract narrative + all metadata fields.
 
     The narrative is the core output.
     """
-    # Step 1: Extract raw text via OCR
-    raw_text = extract_text_from_pdf(pdf_path)
-
-    # Step 2: Clean the text
+    # Clean the text
     cleaned_text = clean_text(raw_text)
 
-    # Step 3: Extract the narrative (the core)
+    # Extract the narrative (the core)
     narrative = extract_narrative(cleaned_text)
 
-    # Step 4: Extract metadata fields
+    # Extract metadata fields
     fir_number = extract_fir_number(cleaned_text) or extract_fir_number(raw_text)
     fir_date = extract_date(cleaned_text)
     acts = extract_acts(raw_text)  # Use raw text for table parsing
@@ -342,6 +367,23 @@ def process_fir_pdf(pdf_path: str) -> dict:
         "district": district,
         "police_station": station,
     }
+
+
+def process_fir_pdf(pdf_path: str) -> dict:
+    """Complete FIR processing pipeline for a PDF: OCR → structured data."""
+    raw_text = extract_text_from_pdf(pdf_path)
+    return _structure_fir_text(raw_text)
+
+
+def process_fir_document(file_path: str, filename: str = "") -> dict:
+    """Complete FIR processing pipeline for a PDF or image document.
+
+    Dispatches OCR on file type (image vs PDF), then runs the shared
+    extraction pipeline. `filename` carries the original name so the
+    extension can be detected even when `file_path` is a temp file.
+    """
+    raw_text = extract_text_from_document(file_path, filename)
+    return _structure_fir_text(raw_text)
 
 
 def process_fir_text(text: str) -> dict:

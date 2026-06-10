@@ -2,8 +2,8 @@
 Legal RAG (Retrieval-Augmented Generation)
 ==========================================
 Semantic search over 390+ parsed law sections using sentence-transformers.
-No external LLM — uses the existing all-MiniLM-L6-v2 model for embeddings
-and cosine similarity for retrieval.
+No external LLM — reuses the shared sentence-transformer embedding model
+(see config.EMBEDDING_MODEL) and cosine similarity for retrieval.
 
 On startup, encodes all law sections into embeddings.
 On query, finds the most semantically relevant sections.
@@ -83,7 +83,8 @@ def warmup():
             raise ValueError("EmbeddingEngine model not loaded yet")
     except Exception:
         from sentence_transformers import SentenceTransformer
-        _model = SentenceTransformer("all-MiniLM-L6-v2")
+        from config import get_settings
+        _model = SentenceTransformer(get_settings().EMBEDDING_MODEL)
         print("[LegalRAG] Loaded fresh embedding model")
 
     # Encode all sections

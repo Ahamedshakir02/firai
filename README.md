@@ -41,7 +41,7 @@ Kerala Police officers face fragmented processes when accessing FIRs, case updat
 - **Detects Modus Operandi (MO) patterns** across FIRs to identify recurring crime methods
 - **Provides AI legal guidance** via a built-in Indian legal knowledge base, with optional Claude AI for conversational answers
 - **Protects sensitive data** via JWT-based officer authentication and a registration portal with admin approval
-- **Centralises all FIR data** with original PDF document storage and retrieval
+- **Centralises all FIR data** with original PDF/image document storage and retrieval
 - **Auto-names and deduplicates** uploaded FIR files using extracted metadata (FIR number, year, police station)
 - **Translates narratives** between Malayalam and English via Bhashini API
 
@@ -364,7 +364,7 @@ You should see **90+ FIRs** already loaded in the Case Intelligence page, sorted
 | **Officer Profile** | `/profile` | View officer details, admin panel for managing registration requests |
 | **Registration Portal** | `/login` (register tab) | New officer registration with admin approval workflow |
 | **Dashboard** | `/` | Crime stats, severity breakdown, monthly trends, recent FIRs |
-| **FIR Analyzer** | `/fir-analyzer` | Upload PDF or paste narrative — AI classifies crime, extracts sections, suggests investigation steps |
+| **FIR Analyzer** | `/fir-analyzer` | Upload a PDF or scanned image, or paste a narrative — AI classifies crime, extracts sections, suggests investigation steps |
 | **Case Intelligence** | `/case-intelligence` | Browse and search FIRs by crime type and police station; multi-dimensional similarity search with PDF downloads |
 | **Legal Assistant** | `/legal-assistant` | AI legal chat (Claude API or knowledge-base fallback), IPC ↔ BNS Cross-Mapper, multi-charge Punishment Calculator |
 | **MO Patterns** | `/mo-patterns` | Detect recurring modus operandi across all FIR narratives |
@@ -507,10 +507,10 @@ The full interactive API docs are at **http://localhost:8000/docs** when running
 | `/api/firs/{id}` | `GET` | Full FIR details with accused |
 | `/api/firs/{id}/download` | `GET` | Download FIR PDF (JSON fallback) |
 | `/api/firs/{id}/similar` | `GET` | Find similar FIRs (embedding + accused matching) |
-| `/api/firs/upload-pdf` | `POST` | Upload and analyse a single FIR PDF |
+| `/api/firs/upload-pdf` | `POST` | Upload and analyse a single FIR PDF or scanned image (PNG/JPG/TIFF/BMP/WEBP) |
 | `/api/firs/analyze-text` | `POST` | Analyse pasted narrative (no save) |
 | `/api/firs/analyze-and-save` | `POST` | Analyse and save narrative as new FIR |
-| `/api/firs/bulk-upload` | `POST` | Bulk upload multiple FIR PDFs |
+| `/api/firs/bulk-upload` | `POST` | Bulk upload multiple FIR PDFs or scanned images |
 | `/api/firs/bulk-upload-json` | `POST` | Bulk upload pre-processed JSON files |
 | `/api/firs/export/all` | `GET` | Export all FIRs as JSON |
 
@@ -572,9 +572,18 @@ Or restart the frontend container:
 docker compose restart frontend
 ```
 
-### PDF upload is slow
+### PDF / image upload is slow
 
-OCR of multi-page FIR PDFs uses Tesseract and takes 15–60 seconds per PDF — this is expected. The backend runs OCR in a background thread so the app stays responsive.
+OCR of multi-page FIR PDFs (or large scanned images) uses Tesseract and takes 15–60 seconds per file — this is expected. The backend runs OCR in a background thread so the app stays responsive.
+
+### Similar-case results look wrong after upgrading
+
+FirAI uses the multilingual `paraphrase-multilingual-MiniLM-L12-v2` embedding model. If you upgraded from an older build that used `all-MiniLM-L6-v2`, the FIR vectors stored in your database were produced by the old model and won't match new queries. Re-seed so every narrative is re-embedded with the new model:
+```bash
+docker compose down -v
+docker compose up --build
+```
+> The new model (~470 MB) is downloaded once on first boot and cached for subsequent runs.
 
 ### Docker Desktop — "WSL 2 installation is incomplete" (Windows)
 
@@ -600,8 +609,8 @@ docker compose restart backend
 | **AI Engine** | Custom BiLSTM + Attention (PyTorch CPU), trained on IPC/BNS legal corpus | Crime classification, entity extraction, legal mapping |
 | **Legal Q&A** | Claude API (Anthropic) — optional; built-in IPC/BNS knowledge base as fallback | Conversational legal answers with RAG |
 | **Legal KB** | Indian Legal Corpus (IPC, BNS, CrPC, BNSS, NDPS, POCSO, MVA, Kerala Abkari Act) | Section lookup, punishment calculator, investigation steps |
-| **Embeddings** | `all-MiniLM-L6-v2` (Sentence-Transformers) | Narrative similarity search |
-| **OCR** | PyMuPDF + Tesseract OCR (`mal+eng`) | PDF text extraction |
+| **Embeddings** | `paraphrase-multilingual-MiniLM-L12-v2` (Sentence-Transformers) | Multilingual narrative similarity search (Malayalam + English) |
+| **OCR** | PyMuPDF + Tesseract OCR (`mal+eng`) | PDF **and image** text extraction |
 | **Translation** | Bhashini API (AI4Bharat) + Google Translate fallback (deep-translator) | Malayalam ↔ English |
 | **Containerisation** | Docker, Docker Compose | One-command deployment |
 
@@ -613,8 +622,8 @@ All FIR files follow the naming convention: `FIR_{number}_{year}_{station}`
 
 | Scenario | What Happens |
 |---|---|
-| **Upload via app** | PDF is OCR'd, FIR number extracted, saved as `FIR_0517_2024_KALPAKANCHERRY.pdf` |
-| **Bulk upload** | Each PDF auto-named based on extracted metadata |
+| **Upload via app** | PDF or image is OCR'd, FIR number extracted, saved as `FIR_0517_2024_KALPAKANCHERRY.pdf` (images keep their original extension, e.g. `.png`) |
+| **Bulk upload** | Each PDF/image auto-named based on extracted metadata |
 | **Database seed** | JSON files auto-named with FIR number + station on first boot |
 
 ### Data Management Scripts

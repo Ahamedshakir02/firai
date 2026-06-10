@@ -25,7 +25,10 @@ class Settings(BaseSettings):
     LOCAL_MODEL_DIR: str = os.path.join(os.path.dirname(__file__), "ai_engine", "trained_models")
 
     # Embedding model
-    EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
+    # Multilingual model (50+ languages incl. Malayalam) so similarity works on
+    # native-script FIR narratives, not just English. Same 384-dim output as the
+    # previous all-MiniLM-L6-v2, so stored embedding vectors stay shape-compatible.
+    EMBEDDING_MODEL: str = "paraphrase-multilingual-MiniLM-L12-v2"
 
     class Config:
         env_file = ".env"

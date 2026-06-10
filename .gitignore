@@ -31,3 +31,5 @@ docker-compose.override.yml
 
 # Storage (large files)
 backend/storage/*.npy
+
+.claude

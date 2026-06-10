@@ -8,6 +8,7 @@ Includes duplicate detection and FIR download.
 
 import os
 import json
+import mimetypes
 import tempfile
 import numpy as np
 from typing import List, Optional
@@ -32,6 +33,14 @@ from routers.auth import require_officer
 
 # All endpoints in this router require a valid JWT token
 router = APIRouter(prefix="/api/firs", tags=["FIRs"], dependencies=[Depends(require_officer)])
+
+# Accepted upload formats: PDF plus scanned-image FIRs (OCR'd directly).
+ALLOWED_UPLOAD_EXTS = {".pdf"} | set(fir_processor.IMAGE_EXTENSIONS)
+
+
+def _upload_ext(filename: Optional[str]) -> str:
+    """Lower-cased extension of an uploaded filename, or '' if none."""
+    return os.path.splitext(filename or "")[1].lower()
 
 
 # ──────────────────────── Duplicate Detection ────────────────────────
@@ -183,22 +192,22 @@ async def download_fir(fir_id: int, db: AsyncSession = Depends(get_db)):
 
     pdf_dir = os.path.join(os.path.dirname(__file__), "..", "data", "raw_pdfs")
 
-    # Try the proper file_name first (convert .json to .pdf just in case), then fall back to legacy id-based name
+    # Try the stored file_name first (an image FIR keeps its own extension; a
+    # legacy .json name maps to its .pdf sibling), then the legacy id-based name.
     candidates = []
     if fir_record and fir_record.file_name:
         import re
-        pdf_name = re.sub(r'\.json$', '.pdf', fir_record.file_name, flags=re.IGNORECASE)
-        candidates.append(pdf_name)
+        candidates.append(re.sub(r'\.json$', '.pdf', fir_record.file_name, flags=re.IGNORECASE))
     candidates.append(f"{fir_id}.pdf")
 
     for candidate in candidates:
-        pdf_path = os.path.join(pdf_dir, candidate)
-        if os.path.exists(pdf_path):
-            download_name = pdf_name if 'pdf_name' in locals() else f"FIR_{fir_id}.pdf"
+        doc_path = os.path.join(pdf_dir, candidate)
+        if os.path.exists(doc_path):
+            media_type = mimetypes.guess_type(candidate)[0] or "application/octet-stream"
             return FileResponse(
-                path=pdf_path,
-                filename=download_name,
-                media_type="application/pdf"
+                path=doc_path,
+                filename=candidate,
+                media_type=media_type,
             )
 
     # Fallback to JSON if PDF is not available
@@ -254,22 +263,26 @@ async def upload_fir_pdf(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Upload a single FIR PDF, process it, extract narrative,
-    analyze with AI, and store in database.
+    Upload a single FIR document (PDF or scanned image), process it,
+    extract the narrative, analyze with AI, and store in the database.
     Detects duplicates by FIR number or narrative similarity.
     """
-    if not file.filename.endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files accepted")
+    ext = _upload_ext(file.filename)
+    if ext not in ALLOWED_UPLOAD_EXTS:
+        raise HTTPException(
+            status_code=400,
+            detail="Only PDF or image files (PNG, JPG, JPEG, TIFF, BMP, WEBP) are accepted",
+        )
 
-    # Save temp file
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp:
+    # Save temp file (preserve original extension so OCR dispatches correctly)
+    with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as temp:
         content = await file.read()
         temp.write(content)
         temp_path = temp.name
 
     try:
-        # Process PDF → extract narrative and metadata
-        processed = fir_processor.process_fir_pdf(temp_path)
+        # Process document → extract narrative and metadata (PDF or image)
+        processed = fir_processor.process_fir_document(temp_path, file.filename)
         narrative = processed["narrative"]
         fir_number = processed.get("fir_number")
 
@@ -304,12 +317,12 @@ async def upload_fir_pdf(
                 duplicate_of_id=existing.id,
             )
 
-        # Generate proper FIR-based filename
+        # Generate proper FIR-based filename (preserve original extension)
         proper_filename = generate_fir_filename(
             fir_number=fir_number,
             police_station=processed.get("police_station"),
             fallback_name=file.filename,
-            extension=".pdf",
+            extension=ext,
         )
 
         # Create FIR record
@@ -489,18 +502,19 @@ async def bulk_upload_firs(
     duplicates = []
 
     for file in files:
-        if not file.filename.endswith(".pdf"):
-            errors.append(f"{file.filename}: Not a PDF file")
+        ext = _upload_ext(file.filename)
+        if ext not in ALLOWED_UPLOAD_EXTS:
+            errors.append(f"{file.filename}: Not a PDF or supported image file")
             continue
 
         try:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as temp:
                 content = await file.read()
                 temp.write(content)
                 temp_path = temp.name
 
-            # Process PDF
-            processed = fir_processor.process_fir_pdf(temp_path)
+            # Process document (PDF or image)
+            processed = fir_processor.process_fir_document(temp_path, file.filename)
             fir_number = processed.get("fir_number")
             narrative = processed["narrative"]
 
@@ -527,12 +541,12 @@ async def bulk_upload_firs(
                     full_text=processed.get("full_text", "")
                 )
 
-            # Generate proper FIR-based filename
+            # Generate proper FIR-based filename (preserve original extension)
             proper_filename = generate_fir_filename(
                 fir_number=fir_number,
                 police_station=processed.get("police_station"),
                 fallback_name=file.filename,
-                extension=".pdf",
+                extension=ext,
             )
 
             # Create FIR record
