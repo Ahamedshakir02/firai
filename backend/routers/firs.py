@@ -707,14 +707,26 @@ async def get_similar_firs(
     top_k: int = Query(5, ge=1, le=20),
     db: AsyncSession = Depends(get_db)
 ):
-    """Find FIRs similar to a specific FIR based on narrative similarity."""
+    """Find FIRs similar to a specific FIR using multi-dimensional similarity
+    (narrative + crime type + repeat-offender matching)."""
     result = await db.execute(select(FIR).where(FIR.id == fir_id))
     fir = result.scalar_one_or_none()
 
     if not fir:
         raise HTTPException(status_code=404, detail="FIR not found")
 
-    return await _find_similar_in_db(fir.narrative, db, top_k=top_k, exclude_id=fir.id)
+    # Pass the source FIR's crime type and accused so the full multi-dimensional
+    # scoring is engaged — not just the narrative dimension.
+    acc_result = await db.execute(select(Accused).where(Accused.fir_id == fir.id))
+    accused_list = [
+        {"name": a.name, "father_name": a.father_name, "dob": a.dob, "address": a.address}
+        for a in acc_result.scalars().all()
+    ]
+
+    return await _find_similar_in_db(
+        fir.narrative, db, top_k=top_k, exclude_id=fir.id,
+        crime_type=fir.crime_type, accused_list=accused_list,
+    )
 
 
 # ──────────────────────── Helper Functions ────────────────────────
