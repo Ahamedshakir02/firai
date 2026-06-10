@@ -247,3 +247,15 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 Once running, visit:
 - **Swagger UI**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
+
+---
+
+## Program & License
+
+Part of **FirAI**, developed for the **Kerala AI Mission (K-AI)** under **Kerala Startup Mission (KSUM)** — applying NLP, OCR, and semantic AI to law-enforcement record analysis for smart governance.
+
+Licensed under the **MIT License**. See the [root LICENSE](../LICENSE) file for full terms.
+
+```
+Copyright (c) 2026 Ahamed Shakir — FirAI Project Contributors
+```
