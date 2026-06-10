@@ -8,6 +8,10 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker)
 ![Custom AI](https://img.shields.io/badge/AI-Custom%20Built-ff6b6b?logo=pytorch)
+![License](https://img.shields.io/badge/License-MIT-green)
+![Kerala AI Mission](https://img.shields.io/badge/Kerala%20AI%20Mission-K--AI-005a9c)
+
+> 🏛️ Built for the **Kerala AI Mission (K-AI)** under **Kerala Startup Mission (KSUM)** — AI for smart governance & public good.
 
 ---
 
@@ -29,6 +33,8 @@
 14. [API Endpoints](#️-api-endpoints)
 15. [Common Issues & Fixes](#-common-issues--fixes)
 16. [Tech Stack](#-tech-stack)
+17. [Kerala AI Mission (K-AI) & Kerala Startup Mission](#kerala-ai-mission-k-ai--kerala-startup-mission)
+18. [License](#license)
 
 ---
 
@@ -663,12 +669,35 @@ python scripts/reprocess_all_firs.py --apply
 
 ---
 
+## Kerala AI Mission (K-AI) & Kerala Startup Mission
+
+**FirAI** is developed for the **Kerala AI Mission (K-AI)** under the **Kerala Startup Mission (KSUM)** — Government of Kerala's flagship initiative to harness Artificial Intelligence for public good and smart governance.
+
+- **Kerala Startup Mission (KSUM)** — Established in 2006 and headquartered in Thiruvananthapuram, KSUM is the Government of Kerala's nodal agency for entrepreneurship development and technology business incubation, having supported 6,400+ startups across the state.
+- **Kerala AI Mission (K-AI)** — *"The Guiding Hand of Smart Governance."* A flagship programme (in collaboration with the Kerala State IT Mission and ICT Academy) that brings together government bodies, technology innovators, startups, researchers, and citizens to co-create AI solutions that are **ethical, transparent, and people-centric** — spanning health, education, agriculture, finance, transport, and **law enforcement**.
+
+FirAI aligns directly with K-AI's mandate: applying NLP, OCR, and semantic AI to a real public-sector challenge — transforming unstructured FIR records into searchable, analyzable intelligence for Kerala Police.
+
+> *FirAI is an independent project built in the context of the K-AI / KSUM programme. It is not an official Government of Kerala product, and references to KSUM/K-AI do not imply endorsement.*
+
+**Learn more:** [Kerala Startup Mission](https://startupmission.kerala.gov.in/) · [Kerala AI Mission](https://kai.startupmission.in/)
+
+---
+
 ## License
 
-This project is developed for the Kerala Police Department as an AI investigation assistant tool.
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for the full text.
+
+```
+Copyright (c) 2026 Ahamed Shakir — FirAI Project Contributors
+Developed for the Kerala AI Mission (K-AI) under Kerala Startup Mission (KSUM).
+```
+
+You are free to use, copy, modify, and distribute this software with attribution. It is provided "as is", without warranty of any kind.
 
 ---
 
 <p align="center">
-  <strong>FirAI</strong> — Custom AI, Smarter Investigations, Safer Kerala
+  <strong>FirAI</strong> — Custom AI, Smarter Investigations, Safer Kerala<br>
+  <sub>Built for the Kerala AI Mission (K-AI) · Kerala Startup Mission</sub>
 </p>
