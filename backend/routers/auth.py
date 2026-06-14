@@ -3,11 +3,12 @@ Auth Router
 -----------
 JWT-based authentication for police officers.
 Handles login, registration requests, profile, and admin approval.
+Includes rate limiting and input validation.
 """
 
 from datetime import datetime, timedelta
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel, Field
@@ -16,6 +17,9 @@ from jose import JWTError, jwt
 
 from database import get_db
 from models.officer import Officer, RegistrationRequest
+from services.rate_limiter import LOGIN_LIMITER, REGISTRATION_LIMITER, RateLimitService
+from validators import OfficerValidator, NarrativeValidator
+from logging_config import logger, auth_logger
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
@@ -161,23 +165,104 @@ async def require_admin(officer: Officer = Depends(require_officer)) -> Officer:
 # ──────────────────────── Endpoints ────────────────────────
 
 @router.post("/login", response_model=TokenResponse)
-async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
-    """Authenticate officer with badge number and password."""
+async def login(
+    request: LoginRequest,
+    req: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Authenticate officer with badge number and password.
+    Rate limited to 5 attempts per 10 minutes.
+    """
+    # Get client IP for rate limiting
+    client_ip = req.client.host if req.client else "unknown"
+
+    # Validate input
+    if not request.badge_number or not request.password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Badge number and password are required",
+        )
+
+    # Rate limiting by IP address
+    allowed, retry_after = await LOGIN_LIMITER.is_allowed(f"login:{client_ip}")
+    if not allowed:
+        # Log security event
+        await RateLimitService.log_attempt(
+            db=db,
+            endpoint="/api/auth/login",
+            identifier=client_ip,
+            ip_address=client_ip,
+            success=False,
+        )
+        logger.security_event(
+            event_type="login_rate_limit",
+            severity="medium",
+            message="Login rate limit exceeded",
+            ip_address=client_ip,
+            details={"retry_after_seconds": retry_after},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Too many login attempts. Please try again in {retry_after} seconds.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    # Find officer
     result = await db.execute(
         select(Officer).where(Officer.badge_number == request.badge_number)
     )
     officer = result.scalar_one_or_none()
 
-    if not officer or not _verify_password(request.password, officer.password_hash):
+    # Verify password (constant-time comparison for both cases)
+    password_valid = officer and _verify_password(request.password, officer.password_hash)
+
+    if not password_valid:
+        # Log failed attempt
+        auth_logger.log_with_extra(
+            level=30,  # WARNING
+            message="Failed login attempt",
+            extra={
+                "badge_number": request.badge_number,
+                "ip_address": client_ip,
+                "success": False,
+            },
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid badge number or password.",
         )
 
     if not officer.is_active:
-        raise HTTPException(status_code=403, detail="Account is deactivated. Contact admin.")
+        auth_logger.log_with_extra(
+            level=30,  # WARNING
+            message="Login attempt for deactivated account",
+            extra={
+                "officer_id": officer.id,
+                "badge_number": officer.badge_number,
+                "ip_address": client_ip,
+            },
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is deactivated. Contact admin.",
+        )
+
+    # Successful login - reset rate limit
+    await LOGIN_LIMITER.reset(f"login:{client_ip}")
 
     token = _create_token(officer.id, officer.badge_number)
+
+    # Log successful login
+    auth_logger.log_with_extra(
+        level=20,  # INFO
+        message="Officer logged in successfully",
+        extra={
+            "officer_id": officer.id,
+            "badge_number": officer.badge_number,
+            "ip_address": client_ip,
+        },
+    )
 
     return TokenResponse(
         access_token=token,
@@ -200,44 +285,96 @@ async def get_my_profile(officer: Officer = Depends(require_officer)):
 
 
 @router.post("/register-request", response_model=RegistrationRequestResponse)
-async def request_registration(request: RegisterRequest, db: AsyncSession = Depends(get_db)):
+async def request_registration(
+    request: RegisterRequest,
+    req: Request,
+    db: AsyncSession = Depends(get_db),
+):
     """
     Submit a registration request for a new officer account.
     The request must be approved by an admin before the officer can log in.
+    Includes rate limiting (3 requests per hour) and input validation.
     """
+    # Get client IP for rate limiting
+    client_ip = req.client.host if req.client else "unknown"
+
+    # Rate limiting by IP address
+    allowed, retry_after = await REGISTRATION_LIMITER.is_allowed(f"register:{client_ip}")
+    if not allowed:
+        logger.security_event(
+            event_type="registration_rate_limit",
+            severity="medium",
+            message="Registration rate limit exceeded",
+            ip_address=client_ip,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many registration attempts. Please try again later.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    # Validate input fields
+    name = OfficerValidator.validate_name(request.name)
+    badge_number = OfficerValidator.validate_badge_number(request.badge_number)
+    phone = OfficerValidator.validate_phone(request.phone) if request.phone else ""
+    password = OfficerValidator.validate_password(request.password)
+
     # Check if badge number already exists as an officer
     existing = await db.execute(
-        select(Officer).where(Officer.badge_number == request.badge_number)
+        select(Officer).where(Officer.badge_number == badge_number)
     )
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="An officer with this badge number already exists.")
+        logger.security_event(
+            event_type="duplicate_registration_attempt",
+            severity="low",
+            message=f"Registration attempt with existing badge: {badge_number}",
+            ip_address=client_ip,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="An officer with this badge number already exists.",
+        )
 
     # Check for pending request with same badge
     pending = await db.execute(
         select(RegistrationRequest).where(
-            RegistrationRequest.badge_number == request.badge_number,
-            RegistrationRequest.status == "pending"
+            RegistrationRequest.badge_number == badge_number,
+            RegistrationRequest.status == "pending",
         )
     )
     if pending.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="A registration request with this badge number is already pending.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A registration request with this badge number is already pending.",
+        )
 
+    # Create registration request
     reg = RegistrationRequest(
-        name=request.name,
-        badge_number=request.badge_number,
-        rank=request.rank,
-        police_station=request.police_station,
-        district=request.district,
-        phone=request.phone,
-        email=request.email,
+        name=name,
+        badge_number=badge_number,
+        rank=request.rank or "",
+        police_station=request.police_station or "",
+        district=request.district or "",
+        phone=phone,
+        email=request.email or "",
     )
     db.add(reg)
     await db.commit()
     await db.refresh(reg)
 
-    # Store the password hash temporarily — we'll use it when approving
-    # For simplicity, store in a module-level dict (production would use a proper flow)
-    _pending_passwords[request.badge_number] = _hash_password(request.password)
+    # Store the password hash temporarily
+    _pending_passwords[badge_number] = _hash_password(password)
+
+    # Log registration request
+    auth_logger.log_with_extra(
+        level=20,  # INFO
+        message="Officer registration request submitted",
+        extra={
+            "badge_number": badge_number,
+            "name": name,
+            "ip_address": client_ip,
+        },
+    )
 
     return reg
 

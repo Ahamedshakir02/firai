@@ -27,6 +27,7 @@ from schemas.fir import (
 )
 from services import fir_processor
 from services import firai_engine
+from services.case_service import CaseEventService
 from services.fir_processor import generate_fir_filename
 from services.embedding_engine import embedding_engine
 from routers.auth import require_officer
@@ -78,7 +79,7 @@ async def _find_duplicate(db: AsyncSession, fir_number: Optional[str] = None,
 
 # ──────────────────────── List & Get ────────────────────────
 
-@router.get("", response_model=List[FIRListItem])
+@router.get("")
 async def list_firs(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
@@ -88,26 +89,43 @@ async def list_firs(
     search: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
-    """List all FIRs with optional filtering, sorted by FIR case number."""
-    query = select(FIR).offset(skip).limit(limit).order_by(
-        # Sort numerically by the number part of fir_number (e.g. '0017/2025' → 17)
-        # NULLs go last; fall back to created_at
+    """List all FIRs with optional filtering, sorted by FIR case number.
+
+    Returns paginated results with total count for UI pagination.
+    """
+    # Build base query for filtering
+    base_query = select(FIR)
+
+    if crime_type:
+        base_query = base_query.where(FIR.crime_type == crime_type)
+    if police_station:
+        base_query = base_query.where(FIR.police_station.ilike(f"%{police_station}%"))
+    if severity:
+        base_query = base_query.where(FIR.severity == severity)
+    if search:
+        base_query = base_query.where(FIR.narrative.icontains(search))
+
+    # Get total count (before pagination)
+    count_result = await db.execute(
+        select(func.count(FIR.id)).select_from(FIR).where(base_query.whereclause)
+    )
+    total_count = count_result.scalar() or 0
+
+    # Apply pagination and ordering
+    query = base_query.offset(skip).limit(limit).order_by(
         FIR.fir_number.asc().nulls_last(),
         FIR.created_at.desc()
     )
 
-    if crime_type:
-        query = query.where(FIR.crime_type == crime_type)
-    if police_station:
-        query = query.where(FIR.police_station.ilike(f"%{police_station}%"))
-    if severity:
-        query = query.where(FIR.severity == severity)
-    if search:
-        query = query.where(FIR.narrative.icontains(search))
-
     result = await db.execute(query)
     firs = result.scalars().all()
-    return firs
+
+    return {
+        "total": total_count,
+        "skip": skip,
+        "limit": limit,
+        "items": [FIRListItem.model_validate(fir) for fir in firs],
+    }
 
 
 @router.get("/export/all")
@@ -359,6 +377,13 @@ async def upload_fir_pdf(
             db.add(accused)
 
         await db.commit()
+
+        # Record the case-creation event for the timeline
+        await CaseEventService.log_event(
+            db, fir_id=fir.id, event_type="created",
+            description="FIR uploaded and analyzed",
+            metadata={"crime_type": analysis.get("crime_type"), "severity": analysis.get("severity")},
+        )
 
         # Save PDF to raw_pdfs folder with proper FIR-based name
         import shutil

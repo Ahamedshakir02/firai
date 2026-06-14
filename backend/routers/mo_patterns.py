@@ -14,6 +14,7 @@ from models.fir import FIR, MOPattern
 from models.officer import Officer
 from schemas.fir import MOPatternResponse
 from services import mo_detector
+from services.case_service import NotificationService
 from routers.auth import require_officer
 
 router = APIRouter(prefix="/api/mo", tags=["MO Patterns"])
@@ -70,5 +71,17 @@ async def detect_mo_patterns(
         saved_patterns.append(mo)
 
     await db.commit()
+
+    # Alert the officer to significant recurring patterns (3+ linked cases)
+    significant = [p for p in saved_patterns if (p.occurrence_count or 0) >= 3]
+    if significant:
+        top = max(significant, key=lambda p: p.occurrence_count or 0)
+        await NotificationService.notify(
+            db,
+            officer_id=officer.id,
+            notification_type="pattern_match",
+            title=f"{len(significant)} recurring MO pattern(s) detected",
+            message=f"'{top.pattern_name}' links {top.occurrence_count} cases. Review under MO Patterns.",
+        )
 
     return saved_patterns
