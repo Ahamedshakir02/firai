@@ -33,6 +33,10 @@ class FIR(Base):
     acts = Column(JSON)                               # [{act, sections}]
     complainant = Column(JSON)                         # {name, father_name, dob}
 
+    # Case workflow state (used by bulk actions & timeline)
+    status = Column(String(30), default="new")        # new, under_investigation, charge_sheeted, closed
+    tags = Column(JSON, nullable=True)                 # ["urgent", "repeat_offender", ...]
+
     # Embedding for narrative similarity
     embedding_vector = Column(LargeBinary, nullable=True)
 
