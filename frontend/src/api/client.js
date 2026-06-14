@@ -103,6 +103,29 @@ export const firAPI = {
   },
 };
 
+// ──────────────────────── Cases (notes, bulk, timeline, alerts) ────────────────────────
+
+export const casesAPI = {
+  // Notes
+  listNotes: (firId) => client.get(`/cases/${firId}/notes`),
+  addNote: (firId, text) => client.post(`/cases/${firId}/notes`, { text }),
+  updateNote: (noteId, text) => client.put(`/cases/notes/${noteId}`, { text }),
+  deleteNote: (noteId) => client.delete(`/cases/notes/${noteId}`),
+
+  // Bulk actions: action = set_status | add_tag | remove_tag | delete
+  bulkAction: (payload) => client.post('/cases/bulk-action', payload),
+
+  // Timeline
+  getTimeline: (firId) => client.get(`/cases/${firId}/timeline`),
+
+  // Notifications
+  listNotifications: (unreadOnly = false) =>
+    client.get('/cases/notifications', { params: { unread_only: unreadOnly } }),
+  unreadCount: () => client.get('/cases/notifications/unread-count'),
+  markRead: (id) => client.post(`/cases/notifications/${id}/read`),
+  markAllRead: () => client.post('/cases/notifications/read-all'),
+};
+
 // ──────────────────────── Dashboard ────────────────────────
 
 export const dashboardAPI = {
