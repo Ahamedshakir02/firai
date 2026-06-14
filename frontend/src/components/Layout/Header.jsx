@@ -1,5 +1,6 @@
-import { Search, Bell, Menu } from 'lucide-react';
+import { Search, Menu } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
+import NotificationBell from '../NotificationBell';
 
 const pageTitles = {
   '/': 'Dashboard',
@@ -32,9 +33,7 @@ export default function Header({ onMenuToggle }) {
           <Search size={16} color="var(--text-muted)" />
           <input type="text" placeholder="Search FIRs, cases..." />
         </div>
-        <button className="btn btn-ghost" style={{ padding: '8px' }}>
-          <Bell size={18} />
-        </button>
+        <NotificationBell />
       </div>
     </header>
   );
