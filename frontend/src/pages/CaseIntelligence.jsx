@@ -1,6 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
-import { firAPI } from '../api/client';
-import { Search, Filter, Eye, Calendar, MapPin, ChevronRight, X, Download } from 'lucide-react';
+import { firAPI, casesAPI } from '../api/client';
+import { Search, Filter, Calendar, MapPin, X, Download, CheckSquare, Square, Tag, Trash2 } from 'lucide-react';
+import CaseCollaboration from '../components/CaseCollaboration';
+
+const STATUS_OPTIONS = [
+  { value: 'new', label: 'New' },
+  { value: 'under_investigation', label: 'Under Investigation' },
+  { value: 'charge_sheeted', label: 'Charge-sheeted' },
+  { value: 'closed', label: 'Closed' },
+];
 
 const CRIME_TYPES = [
   { value: 'abetment_of_suicide', label: 'Abetment of Suicide' },
@@ -44,6 +52,13 @@ export default function CaseIntelligence() {
   const [filterType, setFilterType] = useState('');
   const [policeStation, setPoliceStation] = useState('');
 
+  // Bulk action state
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkStatus, setBulkStatus] = useState('');
+  const [bulkTag, setBulkTag] = useState('');
+  const [bulkBusy, setBulkBusy] = useState(false);
+
   useEffect(() => { loadFIRs(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -58,11 +73,51 @@ export default function CaseIntelligence() {
       if (filterType) params.crime_type = filterType;
       if (policeStation) params.police_station = policeStation;
       const { data } = await firAPI.list(params);
-      setFirs(data);
+      // The list endpoint returns a paginated { items } object; older callers
+      // expected a bare array — accept either shape.
+      setFirs(Array.isArray(data) ? data : (data.items || []));
     } catch (err) {
       console.error('Failed to load FIRs:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    if (selectedIds.size === firs.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(firs.map((f) => f.id)));
+  };
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+    setBulkStatus('');
+    setBulkTag('');
+  };
+
+  const runBulk = async (payload) => {
+    if (selectedIds.size === 0) return;
+    setBulkBusy(true);
+    try {
+      await casesAPI.bulkAction({ fir_ids: Array.from(selectedIds), ...payload });
+      await loadFIRs();
+      setSelectedIds(new Set());
+      setBulkStatus('');
+      setBulkTag('');
+    } catch (err) {
+      console.error('Bulk action failed:', err);
+      alert(err.response?.data?.detail || 'Bulk action failed');
+    } finally {
+      setBulkBusy(false);
     }
   };
 
@@ -166,8 +221,66 @@ export default function CaseIntelligence() {
           <button type="button" className="btn btn-ghost" onClick={exportAllFIRs} title="Export all FIRs as JSON">
             <Download size={16} /> Export All
           </button>
+          <button
+            type="button"
+            className={`btn ${selectMode ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
+            title="Select multiple FIRs for bulk actions"
+          >
+            <CheckSquare size={16} /> {selectMode ? 'Cancel' : 'Select'}
+          </button>
         </form>
       </div>
+
+      {/* Bulk action toolbar */}
+      {selectMode && (
+        <div className="card" style={{ marginBottom: 16, padding: 14, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={selectAll}>
+            {selectedIds.size === firs.length && firs.length > 0 ? <CheckSquare size={15} /> : <Square size={15} />}
+            {selectedIds.size === firs.length && firs.length > 0 ? ' Deselect all' : ' Select all'}
+          </button>
+          <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+            {selectedIds.size} selected
+          </span>
+
+          <div style={{ width: 1, height: 24, background: 'var(--border)' }} />
+
+          {/* Set status */}
+          <select className="form-select" style={{ width: 180 }} value={bulkStatus}
+            onChange={(e) => setBulkStatus(e.target.value)}>
+            <option value="">Set status…</option>
+            {STATUS_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+          <button type="button" className="btn btn-primary btn-sm" disabled={!bulkStatus || bulkBusy || selectedIds.size === 0}
+            onClick={() => runBulk({ action: 'set_status', status: bulkStatus })}>
+            Apply
+          </button>
+
+          <div style={{ width: 1, height: 24, background: 'var(--border)' }} />
+
+          {/* Tag */}
+          <div className="header-search" style={{ width: 150 }}>
+            <Tag size={14} color="var(--text-muted)" />
+            <input type="text" placeholder="tag name" value={bulkTag} onChange={(e) => setBulkTag(e.target.value)} />
+          </div>
+          <button type="button" className="btn btn-ghost btn-sm" disabled={!bulkTag.trim() || bulkBusy || selectedIds.size === 0}
+            onClick={() => runBulk({ action: 'add_tag', tag: bulkTag })}>
+            + Add tag
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm" disabled={!bulkTag.trim() || bulkBusy || selectedIds.size === 0}
+            onClick={() => runBulk({ action: 'remove_tag', tag: bulkTag })}>
+            − Remove tag
+          </button>
+
+          <div style={{ width: 1, height: 24, background: 'var(--border)' }} />
+
+          <button type="button" className="btn btn-ghost btn-sm" style={{ color: 'var(--accent-red, #ef4444)' }}
+            disabled={bulkBusy || selectedIds.size === 0}
+            onClick={() => { if (window.confirm(`Delete ${selectedIds.size} FIR(s)? This cannot be undone. (Admin only)`)) runBulk({ action: 'delete' }); }}>
+            <Trash2 size={14} /> Delete
+          </button>
+        </div>
+      )}
 
       <div className={`ci-grid${selectedFIR ? ' ci-grid--split' : ''}`}>
         {/* FIR List */}
@@ -185,13 +298,29 @@ export default function CaseIntelligence() {
                 <div
                   key={fir.id}
                   className="fir-card"
-                  onClick={() => viewFIR(fir)}
-                  style={selectedFIR?.id === fir.id ? { borderColor: 'var(--accent-blue)', background: 'var(--bg-card-hover)' } : {}}
+                  onClick={() => (selectMode ? toggleSelect(fir.id) : viewFIR(fir))}
+                  style={
+                    selectMode && selectedIds.has(fir.id)
+                      ? { borderColor: 'var(--accent-blue)', background: 'var(--bg-card-hover)' }
+                      : selectedFIR?.id === fir.id
+                        ? { borderColor: 'var(--accent-blue)', background: 'var(--bg-card-hover)' }
+                        : {}
+                  }
                 >
-                  <div className="fir-header">
-                    <span className="fir-id">
+                  <div className="fir-header" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {selectMode && (
+                      selectedIds.has(fir.id)
+                        ? <CheckSquare size={16} color="var(--accent-blue)" />
+                        : <Square size={16} color="var(--text-muted)" />
+                    )}
+                    <span className="fir-id" style={{ flex: 1 }}>
                       {fir.file_name ? fir.file_name.replace(/\.(json|pdf|txt)$/i, '') : (fir.fir_number ? `Case ${fir.fir_number} — ${fir.police_station || ''}` : `FIR #${fir.id}`)}
                     </span>
+                    {fir.status && fir.status !== 'new' && (
+                      <span className="badge badge-blue" style={{ fontSize: '0.62rem' }}>
+                        {fir.status.replace(/_/g, ' ')}
+                      </span>
+                    )}
                     <span className={`badge badge-${fir.severity || 'medium'}`}>
                       {fir.severity || 'N/A'}
                     </span>
@@ -211,6 +340,11 @@ export default function CaseIntelligence() {
                     {fir.police_station && (
                       <span><MapPin size={12} /> {fir.police_station}</span>
                     )}
+                    {Array.isArray(fir.tags) && fir.tags.map((t) => (
+                      <span key={t} className="badge" style={{ fontSize: '0.62rem', background: 'var(--bg-input)', color: 'var(--text-secondary)' }}>
+                        #{t}
+                      </span>
+                    ))}
                   </div>
                 </div>
               ))}
@@ -342,6 +476,9 @@ export default function CaseIntelligence() {
                 <div style={{ fontSize: '0.83rem', color: 'var(--text-muted)' }}>No similar cases found</div>
               )}
             </div>
+
+            {/* Notes & Timeline */}
+            <CaseCollaboration firId={selectedFIR.id} />
           </div>
         )}
       </div>

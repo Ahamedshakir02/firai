@@ -186,6 +186,7 @@ async def get_fir(fir_id: int, db: AsyncSession = Depends(get_db)):
         "narrative": fir.narrative, "narrative_en": fir.narrative_en,
         "narrative_ml": fir.narrative_ml, "full_text": fir.full_text,
         "crime_type": fir.crime_type, "severity": fir.severity,
+        "status": fir.status, "tags": fir.tags,
         "summary_en": fir.summary_en,
         "recommended_steps": fir.recommended_steps,
         "key_entities": fir.key_entities, "acts": fir.acts,

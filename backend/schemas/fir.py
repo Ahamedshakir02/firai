@@ -53,6 +53,8 @@ class FIRListItem(BaseModel):
     place: Optional[str] = None
     crime_type: Optional[str] = None
     severity: Optional[str] = None
+    status: Optional[str] = None
+    tags: Optional[list] = None
 
     narrative: Optional[str] = None
     summary_en: Optional[str] = None

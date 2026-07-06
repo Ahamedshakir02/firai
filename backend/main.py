@@ -14,52 +14,56 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import init_db
 from seed import seed_database
 from seed_officers import seed_officers
-from routers import firs, dashboard, legal, mo_patterns, translate
+from routers import firs, dashboard, legal, mo_patterns, translate, monitoring, cases
 from routers import auth
+from middleware import LoggingMiddleware, ErrorCatchingMiddleware, PerformanceMonitoringMiddleware
 from services.embedding_engine import embedding_engine
 from services.firai_engine import warmup as warmup_ai_engine
 from config import get_settings
+from logging_config import logger
 
 # Ensure Officer/RegistrationRequest tables are created
 import models.officer  # noqa: F401
+import models.audit  # noqa: F401
+import models.case  # noqa: F401
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup and shutdown events."""
     # Startup
-    print("[FirAI] Initializing database...")
+    logger.info("[FirAI] Initializing database...")
     await init_db()
 
-    print("[FirAI] Seeding demo officers...")
+    logger.info("[FirAI] Seeding demo officers...")
     await seed_officers()
 
-    print("[FirAI] Seeding database with existing FIRs...")
+    logger.info("[FirAI] Seeding database with existing FIRs...")
     await seed_database()
 
-    print("[FirAI] Warming up embedding model (pre-loading to avoid first-request delay)...")
+    logger.info("[FirAI] Warming up embedding model...")
     import asyncio
     await asyncio.to_thread(embedding_engine.warmup)
-    print("[FirAI] Embedding model ready.")
+    logger.info("[FirAI] Embedding model ready.")
 
-    print("[FirAI] Loading custom AI engine...")
+    logger.info("[FirAI] Loading custom AI engine...")
     await asyncio.to_thread(warmup_ai_engine)
-    print("[FirAI] Custom AI engine ready.")
+    logger.info("[FirAI] Custom AI engine ready.")
 
-    print("[FirAI] Encoding legal sections for RAG search...")
+    logger.info("[FirAI] Encoding legal sections for RAG search...")
     from services import legal_rag
     await asyncio.to_thread(legal_rag.warmup)
-    print("[FirAI] Legal RAG ready.")
+    logger.info("[FirAI] Legal RAG ready.")
 
-    print("[FirAI] Loading Generative Legal Assistant LLM...")
+    logger.info("[FirAI] Loading Generative Legal Assistant LLM...")
     from ai_engine.models import legal_llm
     await asyncio.to_thread(legal_llm.warmup)
 
-    print("[FirAI] Backend ready!")
+    logger.info("[FirAI] Backend ready!")
     yield
 
     # Shutdown
-    print("[FirAI] Shutting down...")
+    logger.info("[FirAI] Shutting down...")
 
 
 app = FastAPI(
@@ -81,6 +85,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add logging and monitoring middleware
+app.add_middleware(PerformanceMonitoringMiddleware)
+app.add_middleware(ErrorCatchingMiddleware)
+app.add_middleware(LoggingMiddleware)
+
 # Mount routers
 app.include_router(auth.router)       # Auth must be first (public login/register routes)
 app.include_router(firs.router)
@@ -88,6 +97,8 @@ app.include_router(dashboard.router)
 app.include_router(legal.router)
 app.include_router(mo_patterns.router)
 app.include_router(translate.router)
+app.include_router(monitoring.router)  # Metrics, audit trails, and monitoring endpoints
+app.include_router(cases.router)       # Notes, bulk actions, timeline, notifications
 
 
 @app.get("/api/health")
