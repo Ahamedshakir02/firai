@@ -18,23 +18,24 @@
 ## Table of Contents
 
 1. [Overview](#-overview)
-2. [FirAI Engine — Custom AI](#-firai-engine--custom-ai)
-3. [Architecture](#️-architecture)
-4. [Prerequisites](#-prerequisites)
-5. [Step 1 — Install Docker](#step-1--install-docker)
-6. [Step 2 — Clone the Repository](#step-2--clone-the-repository)
-7. [Step 3 — Configure Environment](#step-3--configure-environment)
-8. [Step 4 — Train the AI Model](#step-4--train-the-ai-model)
-9. [Step 5 — Run the Project](#step-5--run-the-project)
-10. [Verify Everything Works](#-verify-everything-works)
-11. [Features](#-features)
-12. [Project Structure](#-project-structure)
-13. [Environment Variables](#-environment-variables)
-14. [API Endpoints](#️-api-endpoints)
-15. [Common Issues & Fixes](#-common-issues--fixes)
-16. [Tech Stack](#-tech-stack)
-17. [Kerala AI Mission (K-AI) & Kerala Startup Mission](#kerala-ai-mission-k-ai--kerala-startup-mission)
-18. [License](#license)
+2. [Screenshots](#-screenshots)
+3. [FirAI Engine — Custom AI](#-firai-engine--custom-ai)
+4. [Architecture](#️-architecture)
+5. [Prerequisites](#-prerequisites)
+6. [Step 1 — Install Docker](#step-1--install-docker)
+7. [Step 2 — Clone the Repository](#step-2--clone-the-repository)
+8. [Step 3 — Configure Environment](#step-3--configure-environment)
+9. [Step 4 — Train the AI Model](#step-4--train-the-ai-model)
+10. [Step 5 — Run the Project](#step-5--run-the-project)
+11. [Verify Everything Works](#-verify-everything-works)
+12. [Features](#-features)
+13. [Project Structure](#-project-structure)
+14. [Environment Variables](#-environment-variables)
+15. [API Endpoints](#️-api-endpoints)
+16. [Common Issues & Fixes](#-common-issues--fixes)
+17. [Tech Stack](#-tech-stack)
+18. [Kerala AI Mission (K-AI) & Kerala Startup Mission](#kerala-ai-mission-k-ai--kerala-startup-mission)
+19. [License](#license)
 
 ---
 
@@ -54,6 +55,22 @@ Kerala Police officers face fragmented processes when accessing FIRs, case updat
 ### Core Principle: Narrative-Centric
 
 The **FIR narrative** (Section 12 — First Information Contents) is the backbone of the entire system. All AI analysis, similarity search, crime classification, and pattern detection flows from the narrative text.
+
+---
+
+## 📸 Screenshots
+
+| Login | Dashboard |
+|---|---|
+| ![Login](docs/screenshots/login.png) | ![Dashboard](docs/screenshots/dashboard.png) |
+
+| FIR Analyzer | MO Patterns |
+|---|---|
+| ![FIR Analyzer](docs/screenshots/fir-analyzer.png) | ![MO Patterns](docs/screenshots/mo-patterns.png) |
+
+| Legal Assistant |
+|---|
+| ![Legal Assistant](docs/screenshots/legal-assistant.png) |
 
 ---
 
